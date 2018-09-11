@@ -258,5 +258,7 @@ tab.1[,4:5]<-tab.1[,4:5] %>%
   signif(digits=3)
 
 htmlTable::htmlTable(tab.1)
+
+
 ```
 
