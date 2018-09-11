@@ -34,3 +34,17 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+.Rproj.user
+
+#GLobal Environment
+*.Rproj
+
+#Data
+*.csv
+*.xlsx
+*.df
+
+#Figures
+*.doc
+*.docx
+*.jpeg

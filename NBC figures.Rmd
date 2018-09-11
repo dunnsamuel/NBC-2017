@@ -1,0 +1,149 @@
+---
+title: "NBC Figures"
+author: "Sam Dunn"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+#save.image(file='NBC_global.Rdata')
+setwd("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/North Branch Biofilms/NBC")
+#attach('NBC_global.Rdata')
+#rmarkdown::render("NBC figures.Rmd")  paste in console to render....source data not included so render button  non-functional
+```
+
+```{r Table 2 (envfit vectors),warning=FALSE,message=FALSE}
+library(formattable)
+attach(its.spp.scrs)
+attach(alg.spp.scrs)
+attach(bac.spp.scrs)
+
+its.spp.scrs$Community=c("Fungus")
+alg.spp.scrs$Community=c("Algae")
+bac.spp.scrs$Community=c("Bacteria")
+
+tab.2=rbind(bac.spp.scrs,alg.spp.scrs,its.spp.scrs)
+#tab.2$Assay
+#tab.2
+tab.2=tab.2[c(5,3,1,2,4)]
+rownames(tab.2)=NULL
+formattable(tab.2)
+#kable(tab.2)
+#pander(tab.2)
+tab.2$Primer=NULL
+tab.2$NMDS1=format(round(tab.2$NMDS1,4),nsmall=4)
+tab.2$NMDS2=format(round(tab.2$NMDS2,4),nsmall=4)
+tab.2=plyr::rename(tab.2,c(NMDS1="  NMDS 1  ",NMDS2="  NMDS 2  ",pvals="   p-values "))
+
+table2=htmlTable::htmlTable(tab.2,rgroup=paste(c("Bacteria","Algae","Fungi")),
+                            n.rgroup=c(7,5,nrow(tab.2)-12),
+                            col.rgroup=c("none","#F7F7F7"),
+                            rnames=FALSE,caption="Significant Vectors Fits",
+                            css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
+table2
+
+
+```
+
+```{r Table 3 (PERMANOVA),warning=FALSE,message=FALSE}
+library(formattable)
+source()
+attach(bac.perm.tab)
+attach(alg.perm.tab)
+attach(its.perm.tab)
+
+#its.perm.tab$Community=c("Fungus")
+#alg.perm.tab$Community=c("Algae")
+#bac.perm.tab$Community=c("Bacteria")
+
+its.perm.tab$Parameter=rownames(its.perm.tab)
+alg.perm.tab$Parameter=rownames(alg.perm.tab)
+bac.perm.tab$Parameter=rownames(bac.perm.tab)
+
+tab.3=rbind(bac.perm.tab,alg.perm.tab,its.perm.tab)
+#tab.2$Assay
+#tab.2
+
+rownames(tab.3)=NULL
+tab.3=tab.3[c(7,8,1,2,3,4,5,6)]
+
+tab.3=plyr::rename(tab.3,c("Parameter"=" ","SumsOfSqs"="Sum of Sqs.","MeanSqs"="Mean Sqs."))
+tab.3$Community=NULL
+
+#tab.3$NMDS1=format(round(tab.2$NMDS1,4),nsmall=4)
+#tab.3$NMDS2=format(round(tab.2$NMDS2,4),nsmall=4)
+#tab.2=plyr::rename(tab.2,c(NMDS1="  NMDS 1  ",NMDS2="  NMDS 2  ",pvals="   p-values "))
+tab.3=tab.3 %>% mutate_if(is.numeric, round, 4)
+
+table3=htmlTable::htmlTable(tab.3,rgroup=paste(c("Bacteria","Algae","Fungi")),
+                            n.rgroup=c(3,3,3),
+                            col.rgroup=c("none","#F7F7F7"),
+                            rnames=FALSE,
+                            css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
+table3
+knitr::kable(table3)
+
+```
+
+```{r Figure 1 (Crystal violet)}
+
+```
+
+```{r Figure 2 (Metabolism)}
+
+```
+
+```{r Figure 3 (Enzymes)}
+
+```
+
+```{r Figure 4 (Shannon),warning=FALSE,message=FALSE}
+library(ggpubr)
+shannon.plot=ggarrange(shannon.div.16s+theme(axis.text.x=element_blank(),
+                                axis.title.y=element_blank(),
+                                axis.title.x=element_blank()),
+          shannon.div.alg+theme(axis.text.x=element_blank(),
+                                axis.title.x=element_blank()),
+          shannon.div.its+theme(axis.title.y=element_blank()),
+          common.legend = TRUE,nrow=3,legend = "bottom",align="v")
+shannon.plot
+ggsave("shannon.plot.jpeg",device = "jpeg",width=8.5,height=8.5, units="in")
+```
+
+```{r Figure 5 (NMDS with vectors),warning=FALSE,message=FALSE}
+library(gridExtra)
+library(lemon)
+g2 <- function(a.gplot){
+  if (!gtable::is.gtable(a.gplot))
+    a.gplot <- ggplotGrob(a.gplot)
+  gtable::gtable_filter(a.gplot, 'guide-box', fixed=TRUE)
+}
+
+
+legend <- g_legend(bac.nmds+theme(legend.position = "left",legend.box="horizontal"))
+nmds.plot=ggarrange(bac.nmds+theme(legend.position='hidden'),
+                    alg.nmds+theme(legend.position='hidden'),
+                    its.nmds+theme(legend.position='hidden'),
+                    legend,
+                    ncol=2,nrow=2,widths=c(1,1,1,1))
+
+
+nmds.plot
+ggsave(nmds.plot, filename = "nmds.plot.jpeg",device="jpeg",width=8.5,height=8,units="in")
+
+```
+
+```{r Figure 6 (Venn Diagrams),warning=FALSE,message=FALSE}
+library(gridExtra)
+library(grid)
+venn.plot=grid.arrange(gTree(children=bac.venn),gTree(children=alg.venn),gTree(children=its.venn),nrow=3)
+ggsave(venn.plot, filename = "venn.plot.jpeg",device="jpeg",width=6,height=11,units="in")
+
+```
+
+```{r Supp Figure 1 (Env conditions),warning=FALSE,message=FALSE}
+
+```
+

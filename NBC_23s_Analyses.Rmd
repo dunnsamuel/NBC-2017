@@ -1,0 +1,688 @@
+---
+title: "NBC 23s Analyses"
+author: "Sam Dunn"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+This workthrough uses the mothur output file egenrated by following the mothur  MiSeq SOP. 
+
+
+Load data from the mothur outptu file and load packages needed for data manipulation, analysis,and visulaization.
+```{r Load Data, include=FALSE,echo=FALSE,warning=FALSE}
+#rm(list = ls(all = TRUE))
+algae.df<- read.delim("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/North Branch Biofilms/nbc23s.final.subsample.tax.summary")
+# ipak function: install and load multiple R packages.
+# check to see if packages are installed. Install them if they are not, then load them into the R session.
+
+ipak <- function(pkg){
+    new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+    if (length(new.pkg)) 
+        install.packages(new.pkg, dependencies = TRUE, repos='http://cran.us.r-project.org')
+    sapply(pkg, require, character.only = TRUE)
+}
+
+# usage
+packages <- c("ggplot2", 
+              "plyr", 
+              "reshape2", 
+              "RColorBrewer", 
+              "scales", 
+              "grid",
+              "VennDiagram",
+              "vegan",
+              "RAM",
+              "tidyr",
+              "Rmisc",
+              "reshape","reshape2",
+              "gapminder","magrittr","dplyr","ggpubr","gridExtra",
+              "patternplot","tibble","gplots","broom","data.table","devtools")
+ipak(packages)
+
+install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+library(pairwiseAdonis)
+
+#theme_set(theme_gray(base_size = 18))
+pd=position_dodge(width=0.4)
+
+#design.file.23=as.data.frame(colnames(algae.df))
+#design.file.23=as.data.frame(design.file.23)
+#design.file.23=t(design.file.23)
+#design.file.23=as.data.frame(design.file.23)
+
+#design.file.23=separate(design.file.23,'colnames(algae.df)',into=c("x","Group"),sep=c(1))
+#design.file.23$x=NULL
+#design.file.23=separate(design.file.23,Group,into=c("Date","Substrate"),sep=c(6),remove=FALSE)
+#design.file.23=separate(design.file.23,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+#write.table(design.file,file="NBC_design_23.txt",sep="\t")
+
+algae.df=bacteria.df[algae.df$taxon !="Chloroplast_ge",]
+
+```
+
+
+We are interested in the effects of time and substrate on the community we sequenced.  Shannon Doversity is a good first metric.  We need to select only 1 taxa level using the "taxlevel" column in our dataset and then perform the analysis.
+```{r Shannon Diversity,echo=FALSE,warning=FALSE}
+algae.df$taxlevel=as.factor(algae.df$taxlevel)
+algae.df.6=subset.data.frame(algae.df, taxlevel==6,drop=TRUE)
+
+shannon<-function(x){
+  shan.list=diversity(x,index="shannon")
+  return(shan.list)
+}
+ #Function to support vectorization
+
+shannon.nbc=apply(algae.df.6[,6:67],2,shannon)
+#apply function calculates shannon diversity by row (2 option)
+
+
+
+list_to_df <- function(list_for_df) {
+  list_for_df <- as.list(list_for_df)
+
+  nm <- names(list_for_df)
+  if (is.null(nm))
+    nm <- seq_along(list_for_df)
+
+  df <- data.frame(name = nm, stringsAsFactors = FALSE)
+  df$value <- unname(list_for_df)
+  df
+} #convert list produced by shannon function
+
+S=max(algae.df.6$total) #Get Richness (total seq)
+shannon.df=list_to_df(shannon.nbc)
+shannon.df$value=as.numeric(shannon.df$value)
+shannon.df$pielou=shannon.df$value/log(S) #pielou's evenness
+
+
+
+shannon.df=separate(shannon.df,name,into=c("junk","Date","Substrate"),sep=c(1,7)) #breaks up sample cpde "name" into component parts
+shannon.df=separate(shannon.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+shannon.df$junk=NULL
+shannon.df=droplevels(shannon.df[-which(shannon.df$Substrate=='CR'),]) #drop controls
+shannon.df$Date=as.factor(shannon.df$Date)
+shannon.df$Date=revalue(shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+shannon.div.summary=summarySE(shannon.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
+shannon.even.summary=summarySE(shannon.df,measurevar="pielou",groupvars=c("Date","Substrate"),na.rm=TRUE)
+
+#figure
+shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
+  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=value-se,ymax=value+se),width=0.3,position=pd)+ylab("Shannon Diversity (H')")+
+  theme_classic()+
+  theme(legend.position=c(0.25,0.95),
+        legend.title=element_blank(),
+        legend.direction="horizontal",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))+ggtitle("Algal Communities")+
+  scale_y_continuous(breaks=seq(0,5,0.5))
+shannon.div.alg
+
+tidy(aov(value~Date+Substrate+Date:Substrate,data=shannon.df))
+
+shan.aov=shannon.df%>%
+  group_by(Date)%>%
+  do(tidy(aov(value~Substrate,data=.)))
+shan.aov
+
+
+
+tukey.shan=shannon.df%>%
+  group_by(Date)%>%
+  do(multitst=TukeyHSD(aov(value~Substrate,data=.)))
+tukey.shan %>%tidy(multitst)
+
+```
+
+Similar to Shannon diversity, we also want to know the evenness of the community across time and our substrates.  We use Pielou's evenness (calculated above) and visualize it here.
+```{r Evenness,echo=FALSE,warning=FALSE}
+shannon.even=ggplot(shannon.even.summary, aes(x=Date,y=pielou,group=Substrate,shape=Substrate,fill=Substrate))+
+  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=pielou-se,ymax=pielou+se),width=0.3,position=pd)+ylab("Pielou's Evenness")+
+  theme_classic()+
+  theme(legend.position=c(0.25,0.95),legend.title=element_blank(),legend.direction="horizontal",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))
+shannon.even
+```
+
+
+We want to count the number of unqiue taxa we have ine ach sample (or OTUs, operational taxonomic units).  TO do this we use a simple custom function and look for values greater than 0 in each row of the dataset
+```{r OTU Richness,echo=FALSE,warning=FALSE}
+algae.df$taxlevel=as.factor(algae.df$taxlevel)
+algae.df.6=subset.data.frame(algae.df, taxlevel==6,drop=TRUE)
+observationThreshold = 1 #set min number to count as OTU being present
+otu=apply(algae.df.6[,6:67]>=observationThreshold, 2, sum,na.rm=T) #check by row to see if each taxa present or not
+otu.0=apply(algae.df.6[,6:67],2,sum,na.rm=T)
+
+list_to_df <- function(list_for_df) {
+  list_for_df <- as.list(list_for_df)
+
+  nm <- names(list_for_df)
+  if (is.null(nm))
+    nm <- seq_along(list_for_df)
+
+  df <- data.frame(name = nm, stringsAsFactors = FALSE)
+  df$value <- unname(list_for_df)
+  df
+}
+
+otu.df=list_to_df(otu) #conevrt list to data frame wiht custom function above
+otu.df$value=as.numeric(otu.df$value)
+otu.df=separate(otu.df,name,into=c("junk","Date","Substrate"),sep=c(1,7))
+otu.df=separate(otu.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+otu.df$junk=NULL
+otu.df=droplevels(otu.df[-which(otu.df$Substrate=='CR'),])
+otu.df$Date=as.factor(otu.df$Date)
+otu.df$Date=revalue(otu.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+out.aov=otu.df%>% #tidy pipes!  Run anovs by Date on otu richenss
+  group_by(Date)%>%
+  do(tidy(aov(value~Substrate,data=.)))
+out.aov
+
+tukey.out=otu.df%>%
+  group_by(Date)%>%
+  do(multitst=TukeyHSD(aov(value~Substrate,data=.)))
+tukey.out %>%tidy(multitst)
+
+
+
+otu.df.summary=summarySE(otu.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
+
+pd=position_dodge(width=0.4)
+otu.plot=ggplot(otu.df.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
+  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=value-se,ymax=value+se),width=0.3,position=pd)+
+  ylab("Observed OTUs")+
+  theme_classic()+
+  theme(legend.position=c(0.25,0.95),
+        legend.title=element_blank(),
+        legend.direction="horizontal",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))
+otu.plot
+```
+
+Absolute Abundance is only so useful.  Here we calculate relatiev abundances for each taxa for its sample and plot stacked bars and a heatmap.
+```{r Relative Abundance Stacked Bar plots,echo=FALSE,warning=FALSE}
+
+theme_set(theme_classic(base_size = 18))
+algae.df.3=subset.data.frame(algae.df, taxlevel==3,drop=TRUE) #taxlevel 3 is class
+
+sites=list(colnames(algae.df.3[,6:67])) #get list of samples
+total=list(colnames(algae.df.3[,1]))
+
+#custome relative abudnace function/  it takes a list of sites and the total column for each taxa and finds the relaive abundance of each taxa in each sample
+rabund=function(sites){
+  rabund=sites/algae.df.3$total
+  return(rabund)
+}
+
+
+rabund.df=rabund(algae.df.3[,6:67])
+rabund.df=cbind(algae.df.3$taxon,rabund.df)
+
+
+#dcast and melt are the modern equivalents of transposition.  they work really well until they don't.
+rabund.df=dcast(melt(rabund.df,id.vars="algae.df.3$taxon"),variable~algae.df.3$taxon)
+rabund.df=separate(rabund.df,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
+rabund.df=separate(rabund.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+rabund.df$junk=NULL
+
+rabund.df=droplevels(rabund.df[-which(rabund.df$Substrate=='CR'),])
+rabund.df$Date=as.factor(rabund.df$Date)
+rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+rabund.h=aggregate(rabund.df[,4:17],list(rabund.df$Date,rabund.df$Substrate),mean)
+taxa=list(colnames(rabund.h[,4:16])) 
+rabund.h=melt(rabund.h,id.vars=c("Group.1","Group.2"))
+
+  
+
+#I couldn't make this automated so I did it manually....don't hate me
+
+rabund.1=filter(rabund.df, Date==3)
+rabund.1$Date=NULL
+rabund.1=aggregate(rabund.1[,3:31],list(rabund.1$Substrate),mean)
+rabund.1=melt(rabund.1, id="Group.1")
+rabund.1$Group.1=as.factor(rabund.1$Group.1)
+
+
+rabund.2=filter(rabund.df,Date==10)
+rabund.2$Date=NULL
+rabund.2=aggregate(rabund.2[,3:31],list(rabund.2$Substrate),mean)
+rabund.2=melt(rabund.2, id="Group.1")
+
+
+rabund.3=filter(rabund.df, Date==21)
+rabund.3$Date=NULL
+rabund.3=aggregate(rabund.3[,3:31],list(rabund.3$Substrate),mean)
+rabund.3=melt(rabund.3, id="Group.1")
+
+
+rabund.4=filter(rabund.df, Date==31)
+rabund.4$Date=NULL
+rabund.4=aggregate(rabund.4[,3:31],list(rabund.4$Substrate),mean)
+rabund.4=melt(rabund.4, id="Group.1")
+
+
+
+
+#select top 40% by substrate
+rabund.1.10=rabund.1%>%
+  group_by(Group.1)%>%
+  arrange(Group.1,desc(value))%>%
+  slice(seq(n()*.4)) #here is where you can select your cutoff level
+rabund.1.sigma=dcast(rabund.1.10,Group.1~variable)
+rabund.1.sigma=t(rabund.1.sigma)
+write.table(rabund.1.sigma,file="170818_rabund.txt",sep="\t")
+
+rabund.2.10=rabund.2%>%
+  group_by(Group.1)%>%
+  arrange(Group.1,desc(value))%>%
+  slice(seq(n()*.4))
+rabund.2.sigma=dcast(rabund.2.10,Group.1~variable)
+rabund.2.sigma=t(rabund.2.sigma)
+write.table(rabund.2.sigma,file="170828_rabund.txt",sep="\t")
+
+rabund.3.10=rabund.3%>%
+  group_by(Group.1)%>%
+  arrange(Group.1,desc(value))%>%
+  slice(seq(n()*.4))
+rabund.3.sigma=dcast(rabund.3.10,Group.1~variable)
+rabund.3.sigma=t(rabund.3.sigma)
+write.table(rabund.3.sigma,file="170905_rabund.txt",sep="\t")
+
+rabund.4.10=rabund.4%>%
+  group_by(Group.1)%>%
+  arrange(Group.1,desc(value))%>%
+  slice(seq(n()*.4))
+rabund.4.sigma=dcast(rabund.4.10,Group.1~variable)
+rabund.4.sigma=t(rabund.4.sigma)
+write.table(rabund.4.sigma,file="170915_rabund.txt",sep="\t")
+
+  
+
+
+stack.23s.1=ggplot(rabund.1.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
+  geom_bar(stat="identity",color="black")+
+  ggtitle("170818")+
+  ylab("Relative Abundance")+
+  xlab("Substrate")+
+  theme_classic()
+stack.23s.1
+
+stack.23s.2=ggplot(rabund.2.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
+  geom_bar(stat="identity",color="black")+
+  ggtitle("170828")+
+  ylab("Relative Abundance")+
+  xlab("Substrate")+
+  theme_classic()
+stack.23s.2
+
+stack.23s.3=ggplot(rabund.3.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
+  geom_bar(stat="identity",color="black")+
+  ggtitle("170905")+
+  ylab("Relative Abundance")+
+  xlab("Substrate")+
+  theme_classic()
+stack.23s.3
+
+stack.23s.4=ggplot(rabund.4.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
+  geom_bar(stat="identity",color="black")+
+  ggtitle("170915")+
+  ylab("Relative Abundance")+
+  xlab("Substrate")+
+  theme_classic()
+stack.23s.4
+#ggarrange(stack.23s.1,stack.23s.2,stack.23s.3,stack.23s.4,ncol=2,nrow=2,labels="auto",legend="right", font.label = list(size = 18, color = "black"))
+```
+Stacked bars are not always the best for visualzing communities.  I prefer heatmaps personally and figured out how to make a facetted heatmap.  if you're not familiar with facet_grid() in ggplot it will rock your world.
+```{r Heatmap Plot,echo=FALSE,warning=FALSE}
+theme_set(theme_gray(base_size = 12))
+algae.df.5=subset.data.frame(algae.df, taxlevel==3,drop=TRUE)
+
+
+
+sites=list(colnames(algae.df.5[,6:67])) #get list of samples
+
+
+
+rabund=function(sites){
+  r.abund=sites/algae.df.4$total
+  return(r.abund)
+}
+
+rabund.23df=algae.df.5[,6:67]#rabund(algae.df.4[,6:71])
+rabund.23df=cbind(algae.df.5$taxon,rabund.23df)
+
+
+rabund.23df=dcast(melt(rabund.23df,id.vars="algae.df.5$taxon"),variable~algae.df.5$taxon)
+
+
+rabund.23df=separate(rabund.23df,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
+rabund.23df=separate(rabund.23df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+rabund.23df$junk=NULL
+
+rabund.23df=droplevels(rabund.23df[-which(rabund.23df$Substrate=='CR'),])
+rabund.23df$Chloroplast=NULL # we pull chloroplasts because they are hard to sequence using our primers and are over-represented.  We want to highlight other algae.
+rabund.23df$Date=as.factor(rabund.23df$Date)
+rabund.23df$Date=revalue(rabund.23df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+
+rabund.23h=aggregate(rabund.23df[,4:79],list(rabund.23df$Date,rabund.23df$Substrate),mean)
+
+
+
+
+ 
+rabund.23h=melt(rabund.23h,id.vars=c("Group.1","Group.2"))
+rabund.23h=rabund.23h%>%
+  group_by(Group.1)%>%
+  arrange(Group.1,desc(value))%>%
+  slice(seq(n()*1))
+
+require(viridis)
+ggplot(rabund.23h, aes(Group.1,variable,fill=log(value)))+geom_tile()+
+  facet_wrap(~Group.2,nrow=1)+scale_fill_viridis(option="B")+
+  theme(#axis.text.x=element_text(angle=90),
+        axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        legend.text=element_text(size=10))+
+  ylab("Class")+
+  xlab("Day of Incubation")
+  
+```
+
+These are all pretty graphs so far, but you haven't answered the question!  Are there differences between substrates, dates, and their interaction?!  Never fear we will answer that int he following code chunk using ANOSIM (analysis of similirity).  ANOSIM is a multivairate method that is similar to ANOVA, but it instead uses a disimilarity matrix (bray curtis in oru case) instead of the data directly.
+
+What's better is that ANOSIM is fully compatible with NMDS plots (the following code chunk)  So we can quantify differences between our treatment combinations and then plot them cleanly using NMDS!
+
+```{r PERMANOVA,echo=FALSE,warning=FALSE}
+#https://sites.google.com/site/mb3gustame/hypothesis-tests/anosim
+algae.df.6=subset.data.frame(algae.df, taxlevel==6,drop=TRUE)
+drops=c("taxlevel","rankID","daughterlevels","total")
+algae.df.6=algae.df.6[,!(names(algae.df.6)%in% drops)]
+anosim.df=t(algae.df.6)
+anosim.df=as.data.frame(anosim.df)
+anosim.df[]=lapply(anosim.df,as.character)
+colnames(anosim.df)=anosim.df[1,]
+anosim.df=anosim.df[-1,]
+anosim.df=anosim.df%>%
+  rownames_to_column
+anosim.df[,2:682]=lapply(anosim.df[,2:682],function(x) as.numeric(as.character(x)))
+
+
+
+
+
+
+anosim.df=separate(anosim.df,rowname,into=c("junk","Date","Substrate"),sep=c(1,7))
+anosim.df=separate(anosim.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+anosim.df$junk=NULL
+
+anosim.df=droplevels(anosim.df[-which(anosim.df$Substrate=='CR'),])
+anosim.df$Date=as.factor(anosim.df$Date)
+anosim.df$Substrate=as.factor(anosim.df$Substrate)
+anosim.df$Date=revalue(anosim.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+
+
+
+
+anosim.3=subset(anosim.df, anosim.df$Date=="3")
+anosim.10=subset(anosim.df, anosim.df$Date=="10")
+anosim.21=subset(anosim.df, anosim.df$Date=="21")
+anosim.31=subset(anosim.df, anosim.df$Date=="31")
+#anosim.31=anosim.31[,colSums(anosim.31 !=0)>0]
+#I wanted to try runnign ANOSIM for each date but there is not great support for this.  so I (gasp) subsetted my data (don't hate me)
+
+
+design.df=anosim.df[,1:3] #design file contains our sample, treatment rep info.  ANOSIM requires a matrix, not a dataframer
+design.3=anosim.3[,1:3]
+design.10=anosim.3[,1:3]
+design.21=anosim.3[,1:3]
+design.31=anosim.3[,1:3]
+
+anosim.df$Date=NULL
+anosim.df$Substrate=NULL
+anosim.df$Rep=NULL
+
+anosim.3$Date=NULL
+anosim.3$Substrate=NULL
+anosim.3$Rep=NULL
+
+anosim.10$Date=NULL
+anosim.10$Substrate=NULL
+anosim.10$Rep=NULL
+
+anosim.21$Date=NULL
+anosim.21$Substrate=NULL
+anosim.21$Rep=NULL
+
+anosim.31$Date=NULL
+anosim.31$Substrate=NULL
+anosim.31$Rep=NULL
+
+adonis(anosim.df~Substrate*Date,data=design.df) #sig  #adonis is the call for anosim n {vegan}
+
+alg.perm=print(adonis(anosim.df~Substrate*Date,data=design.df))
+alg.perm.tab=as.data.frame(alg.perm$aov.tab)
+alg.perm.tab=alg.perm.tab[1:3,]
+
+adonis(anosim.3~Substrate,data=design.3) #ns
+adonis(anosim.10~Substrate,data=design.10) #ns
+adonis(anosim.21~Substrate,data=design.21) #ns
+adonis(anosim.31~Substrate,data=design.31) #ns
+
+pairwise.adonis(anosim.3,factors=design.3$Substrate, #foudn this and adapted it to my code.  it more or less agrees with my multiple samplign approach above.  Pvalues are different because of bonferroni but the results dont really change
+                sim.method = 'bray', 
+                p.adjust.m ='bonferroni')
+pairwise.adonis(anosim.10,factors=design.10$Substrate, 
+                sim.method = 'bray', 
+                p.adjust.m ='bonferroni')
+pairwise.adonis(anosim.21,factors=design.21$Substrate, 
+                sim.method = 'bray', 
+                p.adjust.m ='bonferroni')
+pairwise.adonis(anosim.31,factors=design.31$Substrate, 
+                sim.method = 'bray', 
+                p.adjust.m ='bonferroni')
+
+
+pairwise.adonis(anosim.df,factors=design.df$Substrate, 
+                sim.method = 'bray', 
+                p.adjust.m ='bonferroni')
+
+simper(anosim.df,design.df[,2])
+```
+
+
+So we know whetehr our sample communities differ or not, but now we want to explain these differences (or lack thereof).  How do we bring our non-community environmental data?  We will use the envfit function in vegan to do this!  Envfit takes your community distance matrices and looks for correlations with a similarlys tructured dataset.  Your data sets (community and env) need to be the same size and not contain missing values for this to work.
+```{r Envfit,echo=FALSE,warning=FALSE}
+env.df<- read.csv("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/env.df.csv") #env data from my study.
+env.drops=c("8/15/2017","8/22/2017","8/25/2017","9/1/2017","9/8/2017","9/12/2017") #trimmign sample dates where I didn't sequence
+env.df=droplevels(env.df[!(env.df$Date.Sampled %in% env.drops),])
+colnames(env.df)=c("Date_Sampled","Substrate","NEP","GPP","Respiration","BG-ase","NAG-ase","P-ase",
+                   "Chl.a","Biomass","Day of Incubation","SRP","NO3","NH4","doy","width","xdepth","xvelocity",
+              "xtemp","xspc","Q")
+env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xvelocity",
+              "xtemp","xspc","Q") #droppign some unrelated data...can always add them back by removing them from this list
+env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
+env.df.fac=env.df %>%
+  select(Date_Sampled, Substrate)
+
+algae.df.sp=subset.data.frame(algae.df, taxlevel==4,drop=TRUE)
+
+drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3") #cleaning up communit data
+algae.df.sp=algae.df.sp[ , !(names(algae.df.sp) %in% drops)]
+
+algae.df.m=melt(algae.df.sp,id.vars="taxon")
+algae.df.sp=dcast(algae.df.m,variable~algae.df.sp$taxon)
+#rabund.df$variable=as.numeric(rabund.df$variable)
+algae.df.sp=separate(algae.df.sp,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
+algae.df.sp=separate(algae.df.sp,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+algae.df.sp$junk=NULL
+
+algae.df.sp=droplevels(algae.df.sp[-which(algae.df.sp$Substrate=='CR'),])
+algae.df.sp$Date=as.factor(algae.df.sp$Date)
+algae.df.sp$Date=revalue(algae.df.sp$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+
+algae.df.sps=algae.df.sp[,4:70]
+algae.df.sps=algae.df.sps[rowSums(algae.df.sps)!=0,]
+#dropping KC results in some rows having zero taxa, remove those rows!
+
+algae.df.env=algae.df.sp[,1:2]
+ #god thats a lot fo data munging...I know I've done this in toher chunks but I want each chunk to stand on its own if need be.
+
+alg.ord.dist=vegdist(algae.df.sps) #get distances
+alg.ord.nmds=metaMDS(alg.ord.dist) #run nmds
+alg.ORD=data.frame(MDS1=alg.ord.nmds$points[,1],MDS2=alg.ord.nmds$points[,2]) #exrtact nmds coordinates
+alg.ORD=cbind(alg.ORD,env.df.fac) #combine nmds coordinates with env data
+
+alg.fit=envfit(alg.ord.nmds,env.df.fit,perm=999,na.rm=T,display="sites") #correlate you nmds coordintes with env data  Higher perm number means mroe sensitive p value
+alg.fit
+alg.fit.df=as.data.frame(alg.fit$vectors$arrows*sqrt(alg.fit$vectors$r))
+alg.fit.df$species=rownames(alg.fit.df)
+alg.spp.scrs=as.data.frame(scores(alg.fit,display="vectors"))
+alg.spp.scrs=cbind(alg.spp.scrs, Assay=rownames(alg.spp.scrs),alg.fit$vectors$pvals)
+alg.spp.scrs=setnames(alg.spp.scrs, old=("alg.fit$vectors$pvals"), new=c("pvals"))
+alg.spp.scrs=alg.spp.scrs[ which (alg.spp.scrs$pvals<0.05),] #select only significant covariates
+
+ veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100) #custome functio to calculate ellipses for plotting in ggplot
+  {
+    theta <- (0:npoints) * 2 * pi/npoints
+    Circle <- cbind(cos(theta), sin(theta))
+    t(center + scale * t(Circle %*% chol(cov)))
+ }
+alg.df_ell <- data.frame()
+  for(g in levels(alg.ORD$Substrate)){
+   alg.df_ell <- rbind(alg.df_ell, cbind(as.data.frame(with(alg.ORD[alg.ORD$Substrate==g,],
+                    veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
+                    ,group=g))
+  }
+
+alg.nmds=ggplot(alg.ORD)+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+coord_fixed(ratio=1)+
+  geom_segment(data=alg.spp.scrs, aes(x=0, xend=alg.spp.scrs$NMDS1/3, y=0,yend=alg.spp.scrs$NMDS2/3),
+               arrow=arrow(length=unit(0.1, "cm")),color="red")+
+  geom_text(data = alg.spp.scrs, aes(x = NMDS1/3.5, y = NMDS2/3.5, label = Assay),
+            size = 3) +
+    geom_path(data=alg.df_ell, aes(x=MDS1, y=MDS2,colour=group), size=1, linetype=2)+ggtitle("Algal Communities")+theme_classic()+xlim(-0.5,0.5)+ylim(-0.5,0.5) #I adjuested the length of the arrows (NMDS1/5, etc) so they woudl fit better int he plot.  This is purely for aesthtetic pruposes
+alg.nmds
+
+
+ggplot(alg.ORD)+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+facet_grid(.~Date_Sampled)
+alg.ORD
+ggplot(alg.ORD)+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+facet_grid(.~Substrate)
+
+
+#This section should really be its own chunk.  betadisper compares the area of the collected nmds points for each group you specifiy and compares it to your other group areas (a la anova)
+
+#http://cc.oulu.fi/~jarioksa/softhelp/vegan/html/betadisper.html
+alg.disp.Sample=betadisper(alg.ord.dist,alg.ORD$Substrate)
+alg.disp.Date=betadisper(alg.ord.dist,alg.ORD$Date_Sampled)
+alg.perm.date=permutest(alg.disp.Date, pairwise=TRUE,permutations=1000) 
+TukeyHSD(alg.disp.Sample) #compaitble with tukeyhsd for pairwise comparions!
+alg.perm.sample=permutest(alg.disp.Sample, pairwise=TRUE,permutations=1000)
+TukeyHSD(alg.disp.Date)
+alg.disp.Sample
+alg.disp.Date
+#test pairwise comparions between groups in nmds
+
+
+
+####
+
+  
+
+
+
+
+
+```
+
+```{r Venn Diagrams,echo=FALSE,warning=FALSE}
+#extract and shape OTU table at Order level
+algae.df.venn=subset.data.frame(algae.df, taxlevel==4,drop=TRUE)
+
+drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3")
+algae.df.venn=algae.df.venn[ , !(names(algae.df.venn) %in% drops)]
+
+algae.df.venn=melt(algae.df.venn,id.vars="taxon")
+algae.df.venn=dcast(algae.df.venn,variable~algae.df.venn$taxon)
+#rabund.df$variable=as.numeric(rabund.df$variable)
+algae.df.venn=separate(algae.df.venn,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
+algae.df.venn=separate(algae.df.venn,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+algae.df.venn$junk=NULL
+
+algae.df.venn=droplevels(algae.df.venn[-which(algae.df.venn$Substrate=='CR'),])
+algae.df.venn$Date=as.factor(algae.df.venn$Date)
+algae.df.venn$Date=revalue(algae.df.venn$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+Hard=colnames(algae.df.venn[algae.df.venn$Substrate=="H",apply(algae.df.venn[algae.df.venn$Substrate=="H",],MARGIN=2,function(x) any(x>0))])
+Hard=Hard[-(1:3)]
+
+Soft=colnames(algae.df.venn[algae.df.venn$Substrate=="SO",apply(algae.df.venn[algae.df.venn$Substrate=="SO",],MARGIN=2,function(x) any(x>0))])
+Soft=Soft[-(1:3)]
+
+Sheet=colnames(algae.df.venn[algae.df.venn$Substrate=="SH",apply(algae.df.venn[algae.df.venn$Substrate=="SH",],MARGIN=2,function(x) any(x>0))])
+Sheet=Sheet[-(1:3)]
+
+Foam=colnames(algae.df.venn[algae.df.venn$Substrate=="F",apply(algae.df.venn[algae.df.venn$Substrate=="F",],MARGIN=2,function(x) any(x>0))])
+Foam=Foam[-(1:3)]
+
+Tile=colnames(algae.df.venn[algae.df.venn$Substrate=="T",apply(algae.df.venn[algae.df.venn$Substrate=="T",],MARGIN=2,function(x) any(x>0))])
+Tile=Tile[-(1:3)]
+library(UpSetR)
+comparions=list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile)
+
+
+alg.venn.list=list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile)
+alg.venn=gList(venn.diagram(x=alg.venn.list,filename=NULL,main="Algal Communities",main.fontface = 2,label=TRUE,fill=c("yellow","blue","green","red","purple"),
+                            cat.cex=0.8,cat.fontface=2,lty=1,main.pos=c(0.15,1),
+                            cat.just=list(c(0.6,1) , c(0,0) , c(0,0) , c(1,1) ,c(1,0))))
+```
+
+
+```{r Venn Time,echo=FALSE,warning=FALSE}
+#extract and shape OTU table at Order level
+algae.df.venn=subset.data.frame(algae.df, taxlevel==4,drop=TRUE)
+
+drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3")
+algae.df.venn=algae.df.venn[ , !(names(algae.df.venn) %in% drops)]
+
+algae.df.venn=melt(algae.df.venn,id.vars="taxon")
+algae.df.venn=dcast(algae.df.venn,variable~algae.df.venn$taxon)
+#rabund.df$variable=as.numeric(rabund.df$variable)
+algae.df.venn=separate(algae.df.venn,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
+algae.df.venn=separate(algae.df.venn,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+algae.df.venn$junk=NULL
+
+algae.df.venn=droplevels(algae.df.venn[-which(algae.df.venn$Substrate=='CR'),])
+algae.df.venn$Date=as.factor(algae.df.venn$Date)
+algae.df.venn$Date=revalue(algae.df.venn$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+Day_3=colnames(algae.df.venn[algae.df.venn$Date=="3",apply(algae.df.venn[algae.df.venn$Date=="3",],MARGIN=2,function(x) any(x>0))])
+
+Day_10=colnames(algae.df.venn[algae.df.venn$Date=="10",apply(algae.df.venn[algae.df.venn$Date=="10",],MARGIN=2,function(x) any(x>0))])
+
+Day_21=colnames(algae.df.venn[algae.df.venn$Date=="21",apply(algae.df.venn[algae.df.venn$Date=="21",],MARGIN=2,function(x) any(x>0))])
+
+Day_31=colnames(algae.df.venn[algae.df.venn$Date=="31",apply(algae.df.venn[algae.df.venn$Date=="31",],MARGIN=2,function(x) any(x>0))])
+
+venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
+```
