@@ -9,7 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 #save.image(file='NBC_global.Rdata')
-setwd("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/North Branch Biofilms/NBC")
+
 #attach('NBC_global.Rdata')
 #rmarkdown::render("NBC figures.Rmd")  paste in console to render....source data not included so render button  non-functional
 ```

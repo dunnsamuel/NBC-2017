@@ -43,6 +43,8 @@ rsconnect/
 *.csv
 *.xlsx
 *.df
+*.summary
+*.summary.txt
 
 #Figures
 *.doc

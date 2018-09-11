@@ -14,7 +14,7 @@ This workthrough uses the mothur output file egenrated by following the mothur  
 Load data from the mothur outptu file and load packages needed for data manipulation, analysis,and visulaization.
 ```{r Load Data, include=FALSE,echo=FALSE,warning=FALSE}
 #rm(list = ls(all = TRUE))
-algae.df<- read.delim("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/North Branch Biofilms/nbc23s.final.subsample.tax.summary")
+algae.df<- read.delim("nbc23s.final.subsample.tax.summary")
 # ipak function: install and load multiple R packages.
 # check to see if packages are installed. Install them if they are not, then load them into the R session.
 

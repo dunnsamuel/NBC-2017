@@ -16,8 +16,8 @@ This workthrough uses the mothur output file egenrated by following the mothur  
 
 Load data from the mothur outptu file and load packages needed for data manipulation, analysis,and visulaization.
 ```{r Load Data, echo=FALSE,include=FALSE,warning=FALSE}
-#rm(list = ls(all = TRUE))
-its.df<-read.delim("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/North Branch Biofilms/nbcits.final.an.0.01.cons.tax.summary")
+
+its.df<-read.delim(file="nbcits.final.an.0.01.cons.tax.summary.txt")
 #its.df=its.df[-which(its.df$taxon=="unknown"),]
 # ipak function: install and load multiple R packages.
 # check to see if packages are installed. Install them if they are not, then load them into the R session.
