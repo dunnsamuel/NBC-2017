@@ -202,39 +202,39 @@ int_par<-int_par %>%
 ```{r LME-Table1}
 #Resp
 lme.resp=anova(lme(Resp~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
-lme.resp
+#lme.resp
 
 #GPP
 lme.gpp=anova(lme(GPP~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
-lme.gpp
+#lme.gpp
 
 #NEP
 lme.nep=anova(lme(NEP~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
-lme.nep
+#lme.nep
 
 #BG
 lme.bg=anova(lme(BGT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
-lme.bg
+#lme.bg
 
 #NAG
 lme.nag=anova(lme(NAGT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
-lme.nag
+#lme.nag
 
 #P
 lme.p=anova(lme(PT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
-lme.p
+#lme.p
 
 #Chl
 lme.chl=anova(lme(chl_abs~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=chl.data))
-lme.chl
+#lme.chl
 
 #CV
 cv.data.drop=droplevels(cv.data[-which(cv.data$Date.Sampled=='2017-08-15'),])
 lme.cv=anova(lmer(OD_cm~Date.Sampled*Substrate+(Date.Sampled|Substrate),na.action=na.omit,data=cv.data.drop))
-lme.cv
+#lme.cv
 #model fails to converge, basically there is a date effect but no effect of sample
 lme.cv=anova(lm(OD_cm~Date.Sampled*Substrate,random=list(id=pdBlocked(list(~1,pdIdent(~Substrate-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=cv.data))
-lme.cv
+#lme.cv
 
 table1=list(lme.resp,lme.gpp,lme.nep,lme.bg,lme.nag,lme.p,lme.chl)
 
@@ -254,11 +254,24 @@ tab.1$Factor<-tab.1$Factor%>%
 
 
 
-tab.1[,4:5]<-tab.1[,4:5] %>% 
+
+
+tab.1<-tab.1 %>% 
+  filter(Factor!="Intercept")
+
+tab.1[,4:6]<-tab.1[,4:6] %>% 
   signif(digits=3)
 
 htmlTable::htmlTable(tab.1)
+DT::datatable(tab.1,
+          filter='top',
+          extensions='Buttons',
+          options = list(dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
 
+
+```
+
+```{r CV-Figure 1}
 
 ```
 
