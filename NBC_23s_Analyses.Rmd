@@ -15,6 +15,7 @@ Load data from the mothur outptu file and load packages needed for data manipula
 ```{r Load Data, include=FALSE,echo=FALSE,warning=FALSE}
 #rm(list = ls(all = TRUE))
 algae.df<- read.delim("nbc23s.final.subsample.tax.summary")
+algae.df<-algae.df[,1:71]
 # ipak function: install and load multiple R packages.
 # check to see if packages are installed. Install them if they are not, then load them into the R session.
 
@@ -59,7 +60,7 @@ pd=position_dodge(width=0.4)
 #design.file.23=separate(design.file.23,Substrate,into=c("Substrate","Rep"),sep=c(-1))
 #write.table(design.file,file="NBC_design_23.txt",sep="\t")
 
-algae.df=bacteria.df[algae.df$taxon !="Chloroplast_ge",]
+algae.df=algae.df[algae.df$taxon !="Chloroplast_ge",]
 
 ```
 
@@ -355,7 +356,7 @@ algae.df.5=subset.data.frame(algae.df, taxlevel==3,drop=TRUE)
 
 
 
-sites=list(colnames(algae.df.5[,6:67])) #get list of samples
+sites=list(colnames(algae.df.5[,6:71])) #get list of samples
 
 
 
@@ -364,7 +365,7 @@ rabund=function(sites){
   return(r.abund)
 }
 
-rabund.23df=algae.df.5[,6:67]#rabund(algae.df.4[,6:71])
+rabund.23df=algae.df.5[,6:71]#rabund(algae.df.4[,6:71])
 rabund.23df=cbind(algae.df.5$taxon,rabund.23df)
 
 
@@ -381,7 +382,7 @@ rabund.23df$Date=as.factor(rabund.23df$Date)
 rabund.23df$Date=revalue(rabund.23df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
-rabund.23h=aggregate(rabund.23df[,4:79],list(rabund.23df$Date,rabund.23df$Substrate),mean)
+rabund.23h=aggregate(rabund.23df[,4:32],list(rabund.23df$Date,rabund.23df$Substrate),mean)
 
 
 
@@ -421,7 +422,7 @@ colnames(anosim.df)=anosim.df[1,]
 anosim.df=anosim.df[-1,]
 anosim.df=anosim.df%>%
   rownames_to_column
-anosim.df[,2:682]=lapply(anosim.df[,2:682],function(x) as.numeric(as.character(x)))
+anosim.df[,2:239]=lapply(anosim.df[,2:239],function(x) as.numeric(as.character(x)))
 
 
 
@@ -519,8 +520,7 @@ colnames(env.df)=c("Date_Sampled","Substrate","NEP","GPP","Respiration","BG-ase"
 env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xvelocity",
               "xtemp","xspc","Q") #droppign some unrelated data...can always add them back by removing them from this list
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
-env.df.fac=env.df %>%
-  select(Date_Sampled, Substrate)
+env.df.fac=env.df[,1:2]
 
 algae.df.sp=subset.data.frame(algae.df, taxlevel==4,drop=TRUE)
 

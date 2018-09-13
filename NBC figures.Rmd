@@ -3,16 +3,92 @@ title: "NBC Figures"
 author: "Sam Dunn"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  word_document: default
+  
   html_document: default
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=F}
 #save.image(file='NBC_global.Rdata')
 
 #attach('NBC_global.Rdata')
 #rmarkdown::render("NBC figures.Rmd")  paste in console to render....source data not included so render button  non-functional
+
+#opts_chunk$set(echo = FALSE, cache=FALSE)
+library(knitr)
+load(file="assays.Rdata")
+
 ```
+
+```{r}
+#Resp
+lme.resp=anova(lme(Resp~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
+#lme.resp
+
+#GPP
+lme.gpp=anova(lme(GPP~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
+#lme.gpp
+
+#NEP
+lme.nep=anova(lme(NEP~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=metabolism.data))
+#lme.nep
+
+#BG
+lme.bg=anova(lme(BGT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
+#lme.bg
+
+#NAG
+lme.nag=anova(lme(NAGT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
+#lme.nag
+
+#P
+lme.p=anova(lme(PT2~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=eea.df))
+#lme.p
+
+#Chl
+lme.chl=anova(lme(chl_abs~Date.Sampled*Sample,random=list(id=pdBlocked(list(~1,pdIdent(~Sample-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=chl.data))
+#lme.chl
+
+#CV
+cv.data.drop=droplevels(cv.data[-which(cv.data$Date.Sampled=='2017-08-15'),])
+lme.cv=anova(lmer(OD_cm~Date.Sampled*Substrate+(Date.Sampled|Substrate),na.action=na.omit,data=cv.data.drop))
+#lme.cv
+#model fails to converge, basically there is a date effect but no effect of sample
+lme.cv=anova(lm(OD_cm~Date.Sampled*Substrate,random=list(id=pdBlocked(list(~1,pdIdent(~Substrate-1),pdIdent(~Date.Sampled-1)))),method="ML",na.action=na.omit,data=cv.data))
+#lme.cv
+
+table1=list(lme.resp,lme.gpp,lme.nep,lme.bg,lme.nag,lme.p,lme.chl)
+
+names(table1)=c("resp","gpp","nep","bg","nag","p","chl")
+table1.df=do.call(rbind.data.frame,table1)
+table1.df=cbind(rownames(table1.df),table1.df)
+rownames(table1.df)=NULL
+colnames(table1.df)[1]="assay"
+tab.1<-table1.df%>%
+  separate(assay,into=c("Assay","Factor"),extra="merge")
+
+problem<-c(".",")")
+tab.1$Factor<-tab.1$Factor%>% 
+  gsub(pattern=")",replacement="") %>% 
+  gsub(pattern="\\.",replacement=" ")
+
+
+
+
+
+
+tab.1<-tab.1 %>% 
+  filter(Factor!="Intercept")
+
+tab.1[,4:6]<-tab.1[,4:6] %>% 
+  signif(digits=3)
+
+htmlTable::htmlTable(tab.1)
+DT::datatable(tab.1,
+          filter='top',
+          extensions='Buttons',
+          options = list(dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+```
+
 
 ```{r Table 2 (envfit vectors),warning=FALSE,message=FALSE}
 library(formattable)
@@ -47,9 +123,8 @@ table2
 
 ```
 
-```{r Table 3 (PERMANOVA),warning=FALSE,message=FALSE}
+```{r Table 3 (PERMANOVA),warning=FALSE,message=FALSE,eval=F}
 library(formattable)
-source()
 attach(bac.perm.tab)
 attach(alg.perm.tab)
 attach(its.perm.tab)

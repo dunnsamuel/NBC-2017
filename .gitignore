@@ -45,6 +45,7 @@ rsconnect/
 *.df
 *.summary
 *.summary.txt
+*.txt
 
 #Figures
 *.doc

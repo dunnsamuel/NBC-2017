@@ -17,7 +17,7 @@ This workthrough uses the mothur output file egenrated by following the mothur  
 Load data from the mothur outptu file and load packages needed for data manipulation, analysis,and visulaization.
 ```{r Load Data, echo=FALSE,include=FALSE,warning=FALSE}
 
-its.df<-read.delim(file="nbcits.final.an.0.01.cons.tax.summary.txt")
+its.df<-read.delim(file="nbcits.final.an.0.01.cons.tax.summary")
 #its.df=its.df[-which(its.df$taxon=="unknown"),]
 # ipak function: install and load multiple R packages.
 # check to see if packages are installed. Install them if they are not, then load them into the R session.
@@ -83,7 +83,7 @@ shannon<-function(x){
 }
  #Function to support vectorization
 
-shannon.nbc=apply(its.df.6[,6:72],2,shannon)
+shannon.nbc=apply(its.df.6[,6:68],2,shannon)
 #apply function calculates shannon diversity by row (2 option)
 
 
@@ -107,16 +107,16 @@ shannon.df$pielou=shannon.df$value/log(S) #pielou's evenness
 
 
 
-shannon.df=separate(shannon.df,name,into=c("junk","Date","Substrate"),sep=c(1,7)) #breaks up sample cpde "name" into component parts
-shannon.df=separate(shannon.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-shannon.df$junk=NULL
-shannon.df=shannon.df[-60,]
-shannon.df=droplevels(shannon.df[-which(shannon.df$Substrate=='CR'),]) #drop controls
-shannon.df$Date=as.factor(shannon.df$Date)
-shannon.df$Date=revalue(shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+its.shannon.df=separate(shannon.df,name,into=c("junk","Date","Substrate"),sep=c(1,7)) #breaks up sample cpde "name" into component parts
+its.shannon.df=separate(its.shannon.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
+its.shannon.df$junk=NULL
+its.shannon.df=its.shannon.df[-60,]
+its.shannon.df=droplevels(its.shannon.df[-which(its.shannon.df$Substrate=='CR'),]) #drop controls
+its.shannon.df$Date=as.factor(its.shannon.df$Date)
+its.shannon.df$Date=revalue(its.shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-shannon.div.summary=summarySE(shannon.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
-shannon.even.summary=summarySE(shannon.df,measurevar="pielou",groupvars=c("Date","Substrate"),na.rm=TRUE)
+shannon.div.summary=summarySE(its.shannon.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
+shannon.even.summary=summarySE(its.shannon.df,measurevar="pielou",groupvars=c("Date","Substrate"),na.rm=TRUE)
 
 #figure
 shannon.div.its=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
@@ -132,20 +132,13 @@ shannon.div.its=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,s
   scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))+ggtitle("Fungal Communities")+
   scale_y_continuous(breaks=seq(0,5,0.5))
 shannon.div.its
-tidy(shapiro.test(shannon.df$value))
-tidy(aov(value~Date+Substrate+Date:Substrate,data=shannon.df))
-tidy(TukeyHSD(aov(value~Date,data=shannon.df)))
+tidy(shapiro.test(its.shannon.df$value))
+tidy(aov(value~Date+Substrate+Date:Substrate,data=its.shannon.df))
+tidy(TukeyHSD(aov(value~Date,data=its.shannon.df)))
 
-its.shan.aov=shannon.df%>% #tidy pipes!  Run anovs by Date on otu richenss
-  group_by(Date)%>%
-  do(tidy(aov(value~Substrate,data=.)))
-its.shan.aov
 
-its.shan.tukey.out=shannon.df%>%
-  group_by(Date)%>%
-  do(tidy(TukeyHSD(aov(value~Substrate,data=.))))
-its.shan.tukey.out
 
+saveRDS(its.shannon.df,"its.shannon.Rdata")
 ```
 
 Similar to Shannon diversity, we also want to know the evenness of the community across time and our substrates.  We use Pielou's evenness (calculated above) and visualize it here.
@@ -169,7 +162,7 @@ its.df$taxlevel=as.factor(its.df$taxlevel)
 its.df.6=subset.data.frame(its.df, taxlevel==6,drop=TRUE)
 observationThreshold = 1 #set min number to count as OTU being present
 
-otu=apply(its.df.6[,6:65]>=observationThreshold, 2, sum,na.rm=T) #check by row to see if each taxa present or not
+otu=apply(its.df.6[,6:68]>=observationThreshold, 2, sum,na.rm=T) #check by row to see if each taxa present or not
 #otu.0=apply(its.df.6[,6:65],2,sum,na.rm=T)
 drops=c("SDKC1","SDKC2","SDKC3")
 #otu=otu[,!(names(its.df.6)%in% drops)]
@@ -371,7 +364,7 @@ its.df.5=subset.data.frame(its.df, taxlevel==3,drop=TRUE)
 
 
 
-sites=list(colnames(its.df.5[,6:74])) #get list of samples
+sites=list(colnames(its.df.5[,6:72])) #get list of samples
 drops <- c("SDKC1","SDKC2","SDKC3") #cleaning up communit data
 its.df.5=its.df.5[ , !(names(its.df.5) %in% drops)]
 
@@ -439,7 +432,7 @@ colnames(anosim.df)=anosim.df[1,]
 anosim.df=anosim.df[-1,]
 anosim.df=anosim.df%>%
   rownames_to_column
-anosim.df[,2:295]=lapply(anosim.df[,2:295],function(x) as.numeric(as.character(x)))
+anosim.df[,2:294]=lapply(anosim.df[,2:294],function(x) as.numeric(as.character(x)))
 
 
 
@@ -532,8 +525,8 @@ colnames(env.df)=c("Date_Sampled","Substrate","NEP","GPP","Respiration","BG-ase"
 env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xvelocity",
               "xtemp","xspc","Q") #droppign some unrelated data...can always add them back by removing them from this list
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
-env.df.fac=env.df %>%
-  select(Date_Sampled, Substrate)
+env.df.fac=env.df[,1:2]
+
 
 its.df.sp=subset.data.frame(its.df, taxlevel==4,drop=TRUE)
 

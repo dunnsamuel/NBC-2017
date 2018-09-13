@@ -429,9 +429,7 @@ env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xveloci
               "xtemp","xspc","Q")
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
 
-env.df.fac=env.df %>%
-  select(Date_Sampled, Substrate)
-
+env.df.fac=env.df[,1:2]
 
 bacteria.df.sp=subset.data.frame(bacteria.df, taxlevel==4,drop=TRUE)
 
