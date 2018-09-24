@@ -1,4 +1,3 @@
-
 ---
 title: "NBC 16s Analyses.`r format(Sys.time(), '%d %B, %Y')`"
 author: "Sam Dunn"
@@ -6,8 +5,9 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     df_print: paged
-    keep_md: true
-
+  pdf_document: default
+  word_document: default
+  
 ---
 
 This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were compelted on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.
@@ -633,7 +633,7 @@ pairwise.adonis(anosim.df,factors=c(design.df$Date),
                 sim.method = 'bray', 
                 p.adjust.m ='bonferroni')
 
-simper(anosim.df,design.df[,2])
+#simper(anosim.df,design.df[,2])
 
 ```
 
