@@ -713,4 +713,19 @@ venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
 ```
 
 
+```{r}
+disp.Sample=betadisper(bac.ord.dist,bac.ORD$Substrate)
+boxplot(disp.Sample)
+plot(disp.Sample)
+disp.Date=betadisper(bac.ord.dist,bac.ORD$Date_Sampled)
+boxplot(disp.Date)
+plot(disp.Date)
+perm.date=permutest(disp.Date, pairwise=TRUE,permutations=10000) 
+TukeyHSD(disp.Sample) #compaitble with tukeyhsd for pairwise comparions!
+perm.sample=permutest(disp.Sample, pairwise=TRUE,permutations=10000)
+TukeyHSD(disp.Date)
+disp.Sample
+disp.Date
+```
+
 Okay, so that's all the analyses for now.
