@@ -703,3 +703,9 @@ Day_31=colnames(its.df.venn[its.df.venn$Date=="31",apply(its.df.venn[its.df.venn
 
 venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
 ```
+
+
+```{r}
+saveRDS(its.df,"fungus.Rdata")
+```
+

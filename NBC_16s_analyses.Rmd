@@ -728,4 +728,9 @@ disp.Sample
 disp.Date
 ```
 
+
+```{r}
+saveRDS(bacteria.df,"bacteria.Rdata")
+```
+
 Okay, so that's all the analyses for now.
