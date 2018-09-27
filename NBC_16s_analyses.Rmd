@@ -1,4 +1,3 @@
-
 ---
 title: "NBC 16s Analyses.`r format(Sys.time(), '%d %B, %Y')`"
 author: "Sam Dunn"
@@ -6,8 +5,9 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     df_print: paged
-    keep_md: true
-
+  pdf_document: default
+  word_document: default
+  
 ---
 
 This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were compelted on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.
@@ -216,148 +216,53 @@ otu.plot
 From here on out the taxonomic cutoff set for genus level, can restirct to phylum to match up with stacked bar plots below.  Stacked bar plots kidn fo suck IMHO...but they are a good first cut for finding patterns.
 
 
+
+
 ```{r Stacked Bar Plots,echo=FALSE,warning=FALSE,include=FALSE}
 
-theme_set(theme_classic(base_size = 18))
+
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
-
-sites=list(colnames(bacteria.df.3[,6:67])) #get list of samples
-total=list(colnames(bacteria.df.3[,1]))
-
-
-rabund=function(sites){
-  rabund=sites/bacteria.df.3$total
-  return(rabund)
-}
-
-rabund.df=rabund(bacteria.df.3[,6:67])
-rabund.df=cbind(bacteria.df.3$taxon,rabund.df)
-
+bacteria.df.3$taxlevel=NULL
+bacteria.df.3$rankID=NULL
+bacteria.df.3$daughterlevels=NULL
+bacteria.df.3$total=NULL
+bac.rab<-bacteria.df.3 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+  
+bac.rab<-bac.rab %>%   #rabund calculations
+  group_by(Sample) %>% 
+  mutate(total_obs=sum(obs),
+         rabund=obs/total_obs)
 
 
-rabund.df=dcast(melt(rabund.df,id.vars="bacteria.df.3$taxon"),variable~bacteria.df.3$taxon)
-#rabund.df$variable=as.numeric(rabund.df$variable)
-rabund.df=separate(rabund.df,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
-rabund.df=separate(rabund.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-rabund.df$junk=NULL
 
-rabund.df=droplevels(rabund.df[-which(rabund.df$Substrate=='CR'),])
+bac.rab<-separate(bac.rab,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+bac.rab$Junk=NULL
+
+rabund.df=droplevels(bac.rab[-which(bac.rab$Substrate=='CR'),])
 rabund.df$Date=as.factor(rabund.df$Date)
 rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
-rabund.h=aggregate(rabund.df[,4:30],list(rabund.df$Date,rabund.df$Substrate),mean)
-taxa=list(colnames(rabund.h[,4:29])) 
-rabund.h=melt(rabund.h,id.vars=c("Group.1","Group.2"))
-
-  
-
-
-
-#rabund.long=melt(rabund.df, id.vars="bacteria.df.6$taxon",variable.name="Sample")
-rabund.1=filter(rabund.df, Date==3)
-rabund.1$Date=NULL
-rabund.1=aggregate(rabund.1[,3:29],list(rabund.1$Substrate),mean)
-rabund.1=melt(rabund.1, id="Group.1")
-rabund.1$Group.1=as.factor(rabund.1$Group.1)
-
-
-rabund.2=filter(rabund.df,Date==10)
-rabund.2$Date=NULL
-rabund.2=aggregate(rabund.2[,3:29],list(rabund.2$Substrate),mean)
-rabund.2=melt(rabund.2, id="Group.1")
-
-
-rabund.3=filter(rabund.df, Date==21)
-rabund.3$Date=NULL
-rabund.3=aggregate(rabund.3[,3:29],list(rabund.3$Substrate),mean)
-rabund.3=melt(rabund.3, id="Group.1")
-
-
-rabund.4=filter(rabund.df, Date==31)
-rabund.4$Date=NULL
-rabund.4=aggregate(rabund.4[,3:29],list(rabund.4$Substrate),mean)
-rabund.4=melt(rabund.4, id="Group.1")
+rabund.sum.df<-rabund.df %>% 
+  group_by(Date,Substrate,taxon) %>% 
+  summarise(mean_rabund=mean(rabund),
+            mean_obs=mean(obs))
 
 
 
-
-#select top 10 by substrate
-rabund.1.10=rabund.1%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*.4))
-rabund.1.sigma=dcast(rabund.1.10,Group.1~variable)
-rabund.1.sigma=t(rabund.1.sigma)
-write.table(rabund.1.sigma,file="170818_rabund.txt",sep="\t")
-
-rabund.2.10=rabund.2%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*.4))
-rabund.2.sigma=dcast(rabund.2.10,Group.1~variable)
-rabund.2.sigma=t(rabund.2.sigma)
-write.table(rabund.2.sigma,file="170828_rabund.txt",sep="\t")
-
-rabund.3.10=rabund.3%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*.4))
-rabund.3.sigma=dcast(rabund.3.10,Group.1~variable)
-rabund.3.sigma=t(rabund.3.sigma)
-write.table(rabund.3.sigma,file="170905_rabund.txt",sep="\t")
-
-rabund.4.10=rabund.4%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*.4))
-rabund.4.sigma=dcast(rabund.4.10,Group.1~variable)
-rabund.4.sigma=t(rabund.4.sigma)
-write.table(rabund.4.sigma,file="170915_rabund.txt",sep="\t")
-
-  
-
-
-stack.16s.1=ggplot(rabund.1.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
-  geom_bar(stat="identity",color="black")+
-  ggtitle("170818")+
-  ylab("Relative Abundance")+
-  xlab("Substrate")+
-  theme_classic()
-stack.16s.1
-
-p=ggplot(rabund.1.10,aes())
-
-stack.16s.2=ggplot(rabund.2.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
-  geom_bar(stat="identity",color="black")+
-  ggtitle("170828")+
-  ylab("Relative Abundance")+
-  xlab("Substrate")+
-  theme_classic()
-stack.16s.2
-stack.16s.3=ggplot(rabund.3.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
-  geom_bar(stat="identity",color="black")+
-  ggtitle("170905")+
-  ylab("Relative Abundance")+
-  xlab("Substrate")+
-  theme_classic()
-stack.16s.3
-stack.16s.4=ggplot(rabund.4.10, aes(x=Group.1,y=value,group=variable,color=variable,fill=variable))+
-  geom_bar(stat="identity",color="black")+
-  ggtitle("170915")+
-  ylab("Relative Abundance")+
-  xlab("Substrate")+
-  theme_classic()
-stack.16s.4
-#ggarrange(stack.16s.1,stack.16s.2,stack.16s.3,stack.16s.4,ncol=2,nrow=2,labels="auto",legend="right", font.label = list(size = 18, color = "black"))
-
-#grid.arrange(stack.16s.1,stack.16s.2,stack.16s.3,stack.16s.4)
+rabund.plots<-rabund.sum.df %>% #generates list of plots by Date (groubp_by command)  
+  group_by(Date) %>% 
+  do(plots=ggplot(.,aes(x=Substrate,y=mean_rabund,group=taxon,color=taxon,fill=taxon))+
+       geom_bar(stat="identity",color="black")+
+       ggtitle(paste("Day",.$Date))+ #.$Date is shorthand to pull int he value of date for the given group being produced.  Using patse allows us to add extra text.
+       ylab("Relative Abundance")+
+       xlab("Substrate")+
+       theme_classic())
+rabund.plots$plots[[1]] #calls first plot from list of plots
 
 
 
-#rabund.sum=summarySE(rabund.df,measurevar = "taxa",groupvars=c("Date","Substrate"),na.rm=T)
-
-#rabund.df=group_by(rabund.df$Date)%>%group_by(rabund.df$Substrate)%>%apply(rabund.df,2,FUN=mean,na.rm=T)
 
 ```
 
@@ -365,53 +270,46 @@ Subset rabund stacked bars by date, four panel plot, each panel is sampling even
 
 
 ```{r heatmap,warning=FALSE,echo=FALSE,fig.height=11,fig.width=8.5,fig.align="center"}
-theme_set(theme_gray(base_size = 12))
-bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==4,drop=TRUE)
 
-sites=list(colnames(bacteria.df.3[,6:67])) #get list of samples
-#total=list(colnames(bacteria.df.3[,1]))
+bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE)
+bacteria.df.3$taxlevel=NULL
+bacteria.df.3$rankID=NULL
+bacteria.df.3$daughterlevels=NULL
+bacteria.df.3$total=NULL
+bac.rab<-bacteria.df.3 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+  
+bac.rab<-bac.rab %>%   
+  group_by(Sample) %>% 
+  mutate(total_obs=sum(obs),
+         rabund=obs/total_obs)
 
 
-rabund.df=bacteria.df.3[,6:67]
-rabund.df=cbind(bacteria.df.3$taxon,rabund.df)
 
+bac.rab<-separate(bac.rab,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+bac.rab$Junk=NULL
 
-rabund.df=melt(rabund.df,id.vars="bacteria.df.3$taxon")
-rabund.df=dcast(rabund.df,variable~bacteria.df.3$taxon)
-
-
-rabund.df=separate(rabund.df,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
-rabund.df=separate(rabund.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-rabund.df$junk=NULL
-
-rabund.df=droplevels(rabund.df[-which(rabund.df$Substrate=='CR'),])
+rabund.df=droplevels(bac.rab[-which(bac.rab$Substrate=='CR'),])
 rabund.df$Date=as.factor(rabund.df$Date)
 rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
+rabund.sum.df<-rabund.df %>% 
+  group_by(Date,Substrate,taxon) %>% 
+  summarise(mean_rabund=mean(rabund),
+            mean_obs=mean(obs))
 
 
-rabund.h=aggregate(rabund.df[,4:79],list(rabund.df$Date,rabund.df$Substrate),mean)
-
-
-
-
- 
-rabund.h=melt(rabund.h,id.vars=c("Group.1","Group.2"))
-rabund.h=rabund.h%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*1))
 
 require(viridis)
-ggplot(rabund.h, aes(Group.1,variable,fill=log(value)))+geom_tile()+
-  facet_wrap(~Group.2,nrow=1)+scale_fill_viridis(option="B")+
+ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+geom_tile()+
+  facet_wrap(~Substrate,nrow=1)+scale_fill_viridis()+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10),
         legend.text=element_text(size=10))+
   ylab("Class")+
   xlab("Day of Incubation")
   
-ggsave("hm.jpeg", device="jpeg", width=7, height=10,units="in")
+#ggsave("hm.jpeg", device="jpeg", width=7, height=10,units="in")
 ```
 Great!  Subsetting tot he level 4 tax, order, makes for a readable plot with meaningful resolution.
 
@@ -520,68 +418,43 @@ bac.disp.Date
 Okay.  So, we probably don't have any differences between our groups, but let's find out for certain.  PERMANOVA is the analysis of variance using distance matricies (bray-curtis in our case).  It is non-paramteric and robust.
 
 ```{r PERMANOVA, echo=FALSE, warning=FALSE}
-
-
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
-drops=c("taxlevel","rankID","daughterlevels","total")
-bacteria.df.6=bacteria.df.6[,!(names(bacteria.df.6)%in% drops)]
-anosim.df=t(bacteria.df.6)
-anosim.df=as.data.frame(anosim.df)
-anosim.df[]=lapply(anosim.df,as.character)
-colnames(anosim.df)=anosim.df[1,]
-anosim.df=anosim.df[-1,]
-anosim.df=anosim.df%>%
-  rownames_to_column
-anosim.df[,2:686]=lapply(anosim.df[,2:686],function(x) as.numeric(as.character(x)))
+bacteria.df.6$taxlevel=NULL
+bacteria.df.6$rankID=NULL
+bacteria.df.6$daughterlevels=NULL
+bacteria.df.6$total=NULL
+bac.perm<-bacteria.df.6 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+
+
+
+
+bac.perm<-separate(bac.perm,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+bac.perm$Junk=NULL
+
+bac.perm=droplevels(bac.perm[-which(bac.perm$Substrate=='CR'),])
+bac.perm$Date=as.factor(bac.perm$Date)
+bac.perm$Date=revalue(bac.perm$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+anosim.bac.df<-bac.perm %>% 
+  spread(key="taxon",value="obs")
 
 
 
 
 
-anosim.df=separate(anosim.df,rowname,into=c("junk","Date","Substrate"),sep=c(1,7))
-anosim.df=separate(anosim.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-anosim.df$junk=NULL
-
-anosim.df=droplevels(anosim.df[-which(anosim.df$Substrate=='CR'),])
-anosim.df$Date=as.factor(anosim.df$Date)
-anosim.df$Substrate=as.factor(anosim.df$Substrate)
-anosim.df$Date=revalue(anosim.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
-anosim.3=subset(anosim.df, anosim.df$Date=="3")
-anosim.10=subset(anosim.df, anosim.df$Date=="10")
-anosim.21=subset(anosim.df, anosim.df$Date=="21")
-anosim.31=subset(anosim.df, anosim.df$Date=="31")
-#anosim.31=anosim.31[,colSums(anosim.31 !=0)>0]
+design.df=anosim.bac.df[,1:3]
 
 
+anosim.bac.df$Date=NULL
+anosim.bac.df$Substrate=NULL
+anosim.bac.df$Rep=NULL
 
-design.df=anosim.df[,1:3]
-design.3=anosim.3[,1:3]
-design.10=anosim.3[,1:3]
-design.21=anosim.3[,1:3]
-design.31=anosim.3[,1:3]
-
-anosim.df$Date=NULL
-anosim.df$Substrate=NULL
-anosim.df$Rep=NULL
-
-
-anosim.3$Date=NULL
-anosim.3$Substrate=NULL
-anosim.3$Rep=NULL
-
-anosim.10$Date=NULL
-anosim.10$Substrate=NULL
-anosim.10$Rep=NULL
-
-anosim.21$Date=NULL
-anosim.21$Substrate=NULL
-anosim.21$Rep=NULL
-
-anosim.31$Date=NULL
-anosim.31$Substrate=NULL
-anosim.31$Rep=NULL
+bac.dist<-anosim.bac.df %>% 
+  group_by(Date) %>% 
+  do(vegdist(.))
 
 
 bac.dist=vegdist(anosim.df)
@@ -633,7 +506,7 @@ pairwise.adonis(anosim.df,factors=c(design.df$Date),
                 sim.method = 'bray', 
                 p.adjust.m ='bonferroni')
 
-simper(anosim.df,design.df[,2])
+#simper(anosim.df,design.df[,2])
 
 ```
 
@@ -712,5 +585,25 @@ Day_31=colnames(bacteria.df.venn[bacteria.df.venn$Date=="31",apply(bacteria.df.v
 venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
 ```
 
+
+```{r}
+disp.Sample=betadisper(bac.ord.dist,bac.ORD$Substrate)
+boxplot(disp.Sample)
+plot(disp.Sample)
+disp.Date=betadisper(bac.ord.dist,bac.ORD$Date_Sampled)
+boxplot(disp.Date)
+plot(disp.Date)
+perm.date=permutest(disp.Date, pairwise=TRUE,permutations=10000) 
+TukeyHSD(disp.Sample) #compaitble with tukeyhsd for pairwise comparions!
+perm.sample=permutest(disp.Sample, pairwise=TRUE,permutations=10000)
+TukeyHSD(disp.Date)
+disp.Sample
+disp.Date
+```
+
+
+```{r}
+saveRDS(bacteria.df,"bacteria.Rdata")
+```
 
 Okay, so that's all the analyses for now.

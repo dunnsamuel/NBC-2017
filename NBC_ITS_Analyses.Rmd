@@ -423,7 +423,7 @@ What's better is that ANOSIM is fully compatible with NMDS plots (the following 
 ```{r ANOSIM,echo=FALSE,warning=FALSE}
 #https://sites.google.com/site/mb3gustame/hypothesis-tests/anosim
 its.df.6=subset.data.frame(its.df, taxlevel==6,drop=TRUE)
-drops=c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3")
+drops=c("taxlevel","rankID","daughterlevels","total")
 its.df.6=its.df.6[,!(names(its.df.6)%in% drops)]
 anosim.df=t(its.df.6)
 anosim.df=as.data.frame(anosim.df)
@@ -432,7 +432,7 @@ colnames(anosim.df)=anosim.df[1,]
 anosim.df=anosim.df[-1,]
 anosim.df=anosim.df%>%
   rownames_to_column
-anosim.df[,2:294]=lapply(anosim.df[,2:294],function(x) as.numeric(as.character(x)))
+anosim.df[,2:295]=lapply(anosim.df[,2:295],function(x) as.numeric(as.character(x)))
 
 
 
@@ -454,6 +454,7 @@ anosim.3=subset(anosim.df, anosim.df$Date=="3")
 anosim.10=subset(anosim.df, anosim.df$Date=="10")
 anosim.21=subset(anosim.df, anosim.df$Date=="21")
 anosim.31=subset(anosim.df, anosim.df$Date=="31")
+anosim.df=anosim.df[,1:60]
 #anosim.31=anosim.31[,colSums(anosim.31 !=0)>0]
 #I wanted to try runnign ANOSIM for each date but there is not great support for this.  so I (gasp) subsetted my data (don't hate me)
 
@@ -484,7 +485,7 @@ anosim.31$Date=NULL
 anosim.31$Substrate=NULL
 anosim.31$Rep=NULL
 
-adonis(anosim.df~Substrate*Date,data=design.df) #sig  #adonis is the call for anosim n {vegan}
+#its.ano=adonis(anosim.df~Substrate*Date,data=design.df) #sig  #adonis is the call for anosim n {vegan}
 
 its.perm=print(adonis(anosim.df~Substrate*Date,data=design.df))
 its.perm.tab=as.data.frame(its.perm$aov.tab)
@@ -583,7 +584,7 @@ its.df_ell <- data.frame()
   }
 
 its.nmds=ggplot(its.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+coord_fixed(ratio=1)+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,size=Date_Sampled))+coord_fixed(ratio=1)+
   geom_segment(data=its.spp.scrs, aes(x=0, xend=its.spp.scrs$NMDS1/2, y=0,yend=its.spp.scrs$NMDS2/2),
                arrow=arrow(length=unit(0.1, "cm")),color="red")+
   geom_text(data = its.spp.scrs, aes(x = NMDS1/2, y = NMDS2/2, label = Assay),
@@ -702,3 +703,9 @@ Day_31=colnames(its.df.venn[its.df.venn$Date=="31",apply(its.df.venn[its.df.venn
 
 venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
 ```
+
+
+```{r}
+saveRDS(its.df,"fungus.Rdata")
+```
+

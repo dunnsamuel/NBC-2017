@@ -191,7 +191,6 @@ outlierKD(chl.data,chl_abs_OD)
 no
 
 
-
 ```
 
 ```{r rename substrates}
@@ -465,5 +464,13 @@ enz.plots=ggarrange(exp.plot.bg+theme(axis.text.x=element_blank(),axis.title.x =
           exp.plot.p+theme(legend.position = "none"),nrow=3,align="v",common.legend = FALSE,heights=c(1,1,1.25) )
 
 enz.plots
+```
+
+
+The main effect appears to be in rates of respiration and consequently the NEP.  What other factors explain this?  We will use a desicion tree to identify the data that can best explaint he observed NEP and Rep effect
+```{r NEP and Resp differentials}
+#Bring in rabund data 
+
+saveRDS(metabolism.data,"metdata.Rdata")
 ```
 

@@ -1,0 +1,43 @@
+---
+title: "Metacommunity"
+author: "Sam Dunn"
+date: "September 25, 2018"
+output: html_document
+---
+
+
+```{r setup}
+met.data<-readRDS("metdata.Rdata")
+alg.data<-readRDS("algae.Rdata")
+bac.data<-readRDS("bacteria.Rdata")
+its.data<-readRDS("fungus.Rdata")
+
+bac<-bac.data %>% 
+  gather(-taxlevel,-rankID,-taxon,-daughterlevels,-total,key="Sample",value="obs") %>% 
+  mutate(type="bacteria")
+alg<-alg.data %>% 
+  gather(-taxlevel,-rankID,-taxon,-daughterlevels,-total,key="Sample",value="obs")%>% 
+  mutate(type="alage")
+its<-its.data %>% 
+  gather(-taxlevel,-rankID,-taxon,-daughterlevels,-total,key="Sample",value="obs")%>% 
+  mutate(type="fungus")
+
+
+microbes<-rbind(bac,alg,its)
+
+microbes<-microbes %>% 
+  separate(col="Sample",into=c("junk","Date","Substrate","Rep"),sep=c(1,7,-1)) %>% 
+  filter(Date!="DKC1", Date!="DKC2",Date!="DKC3",Substrate!="CR") %>% 
+  
+  
+microbes$junk=NULL
+microbes$Date=ymd(microbes$Date)
+
+microbes$Substrate=factor(microbes$Substrate,levels=c("H","So","Sh","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
+
+met.data<-plyr::rename(met.data,c("Date.Sampled"="Date","Sample"="Substrate"))
+
+master<-left_join(microbes,met.data,by=c("Date","Substrate","Rep"))
+
+```
+
