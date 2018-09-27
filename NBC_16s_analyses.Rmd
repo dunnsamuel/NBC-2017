@@ -271,7 +271,7 @@ Subset rabund stacked bars by date, four panel plot, each panel is sampling even
 
 ```{r heatmap,warning=FALSE,echo=FALSE,fig.height=11,fig.width=8.5,fig.align="center"}
 
-bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
+bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE)
 bacteria.df.3$taxlevel=NULL
 bacteria.df.3$rankID=NULL
 bacteria.df.3$daughterlevels=NULL
@@ -418,68 +418,43 @@ bac.disp.Date
 Okay.  So, we probably don't have any differences between our groups, but let's find out for certain.  PERMANOVA is the analysis of variance using distance matricies (bray-curtis in our case).  It is non-paramteric and robust.
 
 ```{r PERMANOVA, echo=FALSE, warning=FALSE}
-
-
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
-drops=c("taxlevel","rankID","daughterlevels","total")
-bacteria.df.6=bacteria.df.6[,!(names(bacteria.df.6)%in% drops)]
-anosim.df=t(bacteria.df.6)
-anosim.df=as.data.frame(anosim.df)
-anosim.df[]=lapply(anosim.df,as.character)
-colnames(anosim.df)=anosim.df[1,]
-anosim.df=anosim.df[-1,]
-anosim.df=anosim.df%>%
-  rownames_to_column
-anosim.df[,2:686]=lapply(anosim.df[,2:686],function(x) as.numeric(as.character(x)))
+bacteria.df.6$taxlevel=NULL
+bacteria.df.6$rankID=NULL
+bacteria.df.6$daughterlevels=NULL
+bacteria.df.6$total=NULL
+bac.perm<-bacteria.df.6 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+
+
+
+
+bac.perm<-separate(bac.perm,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+bac.perm$Junk=NULL
+
+bac.perm=droplevels(bac.perm[-which(bac.perm$Substrate=='CR'),])
+bac.perm$Date=as.factor(bac.perm$Date)
+bac.perm$Date=revalue(bac.perm$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
+anosim.bac.df<-bac.perm %>% 
+  spread(key="taxon",value="obs")
 
 
 
 
 
-anosim.df=separate(anosim.df,rowname,into=c("junk","Date","Substrate"),sep=c(1,7))
-anosim.df=separate(anosim.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-anosim.df$junk=NULL
-
-anosim.df=droplevels(anosim.df[-which(anosim.df$Substrate=='CR'),])
-anosim.df$Date=as.factor(anosim.df$Date)
-anosim.df$Substrate=as.factor(anosim.df$Substrate)
-anosim.df$Date=revalue(anosim.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
-anosim.3=subset(anosim.df, anosim.df$Date=="3")
-anosim.10=subset(anosim.df, anosim.df$Date=="10")
-anosim.21=subset(anosim.df, anosim.df$Date=="21")
-anosim.31=subset(anosim.df, anosim.df$Date=="31")
-#anosim.31=anosim.31[,colSums(anosim.31 !=0)>0]
+design.df=anosim.bac.df[,1:3]
 
 
+anosim.bac.df$Date=NULL
+anosim.bac.df$Substrate=NULL
+anosim.bac.df$Rep=NULL
 
-design.df=anosim.df[,1:3]
-design.3=anosim.3[,1:3]
-design.10=anosim.3[,1:3]
-design.21=anosim.3[,1:3]
-design.31=anosim.3[,1:3]
-
-anosim.df$Date=NULL
-anosim.df$Substrate=NULL
-anosim.df$Rep=NULL
-
-
-anosim.3$Date=NULL
-anosim.3$Substrate=NULL
-anosim.3$Rep=NULL
-
-anosim.10$Date=NULL
-anosim.10$Substrate=NULL
-anosim.10$Rep=NULL
-
-anosim.21$Date=NULL
-anosim.21$Substrate=NULL
-anosim.21$Rep=NULL
-
-anosim.31$Date=NULL
-anosim.31$Substrate=NULL
-anosim.31$Rep=NULL
+bac.dist<-anosim.bac.df %>% 
+  group_by(Date) %>% 
+  do(vegdist(.))
 
 
 bac.dist=vegdist(anosim.df)
