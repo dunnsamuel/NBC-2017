@@ -329,21 +329,20 @@ env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
 
 env.df.fac=env.df[,1:2]
 
-bacteria.df.sp=subset.data.frame(bacteria.df, taxlevel==4,drop=TRUE)
+bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
+bacteria.df.3$taxlevel=NULL
+bacteria.df.3$rankID=NULL
+bacteria.df.3$daughterlevels=NULL
+bacteria.df.3$total=NULL
+bac.env<-bacteria.df.3 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+  
+bac.env<-separate(bac.env,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+bac.env$Junk=NULL
 
-drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3")
-bacteria.df.sp=bacteria.df.sp[ , !(names(bacteria.df.sp) %in% drops)]
-
-bacteria.df.sp=melt(bacteria.df.sp,id.vars="taxon")
-bacteria.df.sp=dcast(bacteria.df.sp,variable~bacteria.df.sp$taxon)
-#rabund.df$variable=as.numeric(rabund.df$variable)
-bacteria.df.sp=separate(bacteria.df.sp,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
-bacteria.df.sp=separate(bacteria.df.sp,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-bacteria.df.sp$junk=NULL
-
-bacteria.df.sp=droplevels(bacteria.df.sp[-which(bacteria.df.sp$Substrate=='CR'),])
-bacteria.df.sp$Date=as.factor(bacteria.df.sp$Date)
-bacteria.df.sp$Date=revalue(bacteria.df.sp$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+bac.env=droplevels(bac.env[-which(bac.env$Substrate=='CR'),])
+bac.env$Date=as.factor(bac.env$Date)
+bac.env$Date=revalue(bac.env$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
 bacteria.df.sp=bacteria.df.sp[,4:130] #custome value

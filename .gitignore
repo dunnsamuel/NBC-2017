@@ -40,8 +40,8 @@ rsconnect/
 *.Rproj
 
 #Data
-*.csv
-*.xlsx
+
+
 *.df
 *.summary
 *.summary.txt
