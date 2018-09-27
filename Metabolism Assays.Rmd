@@ -1,6 +1,15 @@
 ---
 title: "General Metabolic Analyses"
-output: html_notebook
+author: "Sam Dunn"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: 
+    fig_height: 8
+    fig_width: 8
+    toc: yes
 ---
 ```{r setup}
 #load libraries used
