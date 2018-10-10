@@ -27,7 +27,7 @@ packages <- c("ggplot2",
               "tidyr",
               "Rmisc","glue",
               "reshape","reshape2","lemon",
-              "gapminder","magrittr","dplyr","ggpubr","gridExtra","MASS","patternplot","tibble","gplots","broom","data.table","devtools","lubridate","caret","glmulti")
+              "gapminder","magrittr","dplyr","ggpubr","gridExtra","MASS","patternplot","tibble","gplots","broom","data.table","devtools","lubridate","caret","glmulti","htmlTable")
 ipak(packages)
 
 met.data<-readRDS("metdata.Rdata")
@@ -115,7 +115,7 @@ control<-rfeControl(functions=rfFuncs,method="cv",number=10)
 
 
 ```{r}
-cut<-c("NEP","Rep","obs","doy","Date")
+
 mod.dat<-class.taxa %>%
   filter(rabund>0.01) %>% 
   spread(key=taxon,value=rabund,fill=0) %>% 
@@ -132,9 +132,9 @@ pos.dat<-mod.dat %>%
 neg.dat<-mod.dat %>% 
   filter(nep_dif=="neg")
 
-pos.dat<- dplyr::select(pos.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
-neg.dat<- dplyr::select(neg.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
-mod.dat<- dplyr::select(mod.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
+pos.dat<- dplyr::select(pos.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif,GPP,Resp))
+neg.dat<- dplyr::select(neg.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif,GPP,Resp))
+mod.dat<- dplyr::select(mod.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif,GPP,Resp))
 
 mod_neg<-glmulti(data=neg.dat,NEP~.,method="g",level=1,chunks=4)
 mod_pos<-glmulti(data=pos.dat,NEP~.,method="g",level=1,chunks=4)
@@ -146,16 +146,26 @@ summary(mod_neg)
 summary(full_mod)
 
 
-mod_pos.final<-lm(NEP ~ 1 + GPP + Resp + time + srp + no3 + nh4 + Flavobacteria + Verrucomicrobiae, data=pos.dat)
-summary(mod_pos.final)
+mod_pos.final<-lm(paste(mod_pos@formulas[1]), data=pos.dat)
+pos_sum<-tidy(summary(mod_pos.final))
+pos_sum$model="PE and PVC"
 
 
-mod_neg.final<-lm(NEP ~ 1 + GPP + Resp + time + c__Leotiomycetes + k__Fungi_unclassified,data=neg.dat)
-summary(mod_neg.final)
+
+mod_neg.final<-lm(paste(mod_neg@formulas[1]),data=neg.dat)
+neg_sum<-tidy(summary(mod_neg.final))
+neg_sum$model="PS and Tile"
 
 
-full_mod.final<-lm(NEP ~ 1 + GPP + Resp + Actinobacteria + Verrucomicrobiae,data=mod.dat)
-summary(full_mod.final)
+full_mod.final<-lm(paste(full_mod@formulas[1]),data=mod.dat)
+full_sum<-tidy(summary(full_mod.final))
+full_sum$model="All Data"
+
+lm_model_outputs<-rbind(pos_sum,neg_sum,full_sum)
+lm_model_outputs[,2:5]<-signif(lm_model_outputs[,2:5],4)
+htmlTable(lm_model_outputs)
+
+
 
 ```
 
