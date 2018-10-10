@@ -7,6 +7,29 @@ output: html_document
 
 
 ```{r setup}
+ipak <- function(pkg){
+    new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+    if (length(new.pkg)) 
+        install.packages(new.pkg, dependencies = TRUE, repos='http://cran.us.r-project.org')
+    sapply(pkg, require, character.only = TRUE)
+}
+
+# usage
+packages <- c("ggplot2", 
+              "plyr", 
+              "reshape2", 
+              "RColorBrewer", 
+              "scales", 
+              "grid",
+              "VennDiagram","bibtex",
+              "vegan",
+              "RAM",
+              "tidyr",
+              "Rmisc","glue",
+              "reshape","reshape2","lemon",
+              "gapminder","magrittr","dplyr","ggpubr","gridExtra","MASS","patternplot","tibble","gplots","broom","data.table","devtools","lubridate","caret","glmulti")
+ipak(packages)
+
 met.data<-readRDS("metdata.Rdata")
 alg.data<-readRDS("algae.Rdata")
 bac.data<-readRDS("bacteria.Rdata")
@@ -25,9 +48,14 @@ its<-its.data %>%
 
 microbes<-rbind(bac,alg,its)
 
+microbes<-microbes %>%   #rabund calculations
+  group_by(type,Sample) %>% 
+  mutate(total_obs=sum(obs),
+         rabund=obs/total_obs)
+
 microbes<-microbes %>% 
-  separate(col="Sample",into=c("junk","Date","Substrate","Rep"),sep=c(1,7,-1)) %>% 
-  filter(Date!="DKC1", Date!="DKC2",Date!="DKC3",Substrate!="CR") %>% 
+  separate(col="Sample",into=c("junk","Date","Substrate","Rep"),sep=c(1,7,-1)) %>%
+  filter(Date!="DKC1", Date!="DKC2",Date!="DKC3",Substrate!="CR")
   
   
 microbes$junk=NULL
@@ -38,6 +66,96 @@ microbes$Substrate=factor(microbes$Substrate,levels=c("H","So","Sh","F","T"),lab
 met.data<-plyr::rename(met.data,c("Date.Sampled"="Date","Sample"="Substrate"))
 
 master<-left_join(microbes,met.data,by=c("Date","Substrate","Rep"))
+
+```
+
+
+Data are loaded, tidyed, and ready for analysis.  We will be using a process called feature selection to identiify model components that are good explanatory vriables for NEP.
+
+```{r}
+class.taxa<-master %>% 
+  filter(taxlevel==3)
+
+#remove clutter
+class.taxa$taxlevel=NULL
+class.taxa$rankID=NULL
+class.taxa$daughterlevels=NULL
+class.taxa$total=NULL
+class.taxa$id=NULL
+class.taxa<-na.omit(class.taxa)
+
+#revlaue factors are numeric
+tax.levels<-as.data.frame(levels(class.taxa$taxon))
+tax.levels$code<-seq(1,length(tax.levels$`levels(class.taxa$taxon)`),1)
+
+#glm
+full<-glm(NEP~.,family="gaussian",data=class.taxa)
+summary(full)
+step<-stepAIC(full,direction="both",trace=FALSE)
+step$anova
+
+#partition training and validation sets
+intraining<-createDataPartition(class.taxa$NEP,p=0.80,list=FALSE)
+training<-class.taxa[intraining,]
+testing<-class.taxa[-intraining,]
+
+#Lerning vector quantization
+#control <- trainControl(method="repeatedcv", number=10, repeats=10)
+#model <- train(NEP~., 
+ #              data=training, 
+ #              method="gbm",
+   #            verbose=FALSE, 
+   #            trControl=control)
+#recursive feature selection
+control<-rfeControl(functions=rfFuncs,method="cv",number=10)
+
+#result<-rfe(class.taxa[,-which(names(class.taxa)=="NEP")],class.taxa$NEP,control=control)
+
+```
+
+
+```{r}
+cut<-c("NEP","Rep","obs","doy","Date")
+mod.dat<-class.taxa %>%
+  filter(rabund>0.01) %>% 
+  spread(key=taxon,value=rabund,fill=0) %>% 
+  mutate(nep_dif=case_when(Substrate=="PS"~"neg",
+                           Substrate=="Tile"~"neg",
+                           TRUE~"pos"))
+
+
+  
+
+set.seed(42)
+pos.dat<-mod.dat %>% 
+  filter(nep_dif=="pos")
+neg.dat<-mod.dat %>% 
+  filter(nep_dif=="neg")
+
+pos.dat<- dplyr::select(pos.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
+neg.dat<- dplyr::select(neg.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
+mod.dat<- dplyr::select(mod.dat,-c(Rep,obs,doy,Date,total_obs,Substrate,nep_dif))
+
+mod_neg<-glmulti(data=neg.dat,NEP~.,method="g",level=1,chunks=4)
+mod_pos<-glmulti(data=pos.dat,NEP~.,method="g",level=1,chunks=4)
+full_mod<-glmulti(data=mod.dat,NEP~.,method="g",level=1,chunks=4)
+
+
+summary(mod_pos)
+summary(mod_neg)
+summary(full_mod)
+
+
+mod_pos.final<-lm(NEP ~ 1 + GPP + Resp + time + srp + no3 + nh4 + Flavobacteria + Verrucomicrobiae, data=pos.dat)
+summary(mod_pos.final)
+
+
+mod_neg.final<-lm(NEP ~ 1 + GPP + Resp + time + c__Leotiomycetes + k__Fungi_unclassified,data=neg.dat)
+summary(mod_neg.final)
+
+
+full_mod.final<-lm(NEP ~ 1 + GPP + Resp + Actinobacteria + Verrucomicrobiae,data=mod.dat)
+summary(full_mod.final)
 
 ```
 
