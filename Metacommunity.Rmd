@@ -123,7 +123,7 @@ mod.dat<-class.taxa %>%
                            Substrate=="Tile"~"neg",
                            TRUE~"pos"))
 
-
+#Select for axa that have at least 1% relative abundance to make dataset manageable by glmulti
   
 
 set.seed(42)
