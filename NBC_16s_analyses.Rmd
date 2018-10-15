@@ -368,24 +368,23 @@ bacteria.df.3$taxlevel=NULL
 bacteria.df.3$rankID=NULL
 bacteria.df.3$daughterlevels=NULL
 bacteria.df.3$total=NULL
-bac.env<-bacteria.df.3 %>% 
-  gather(-taxon,key="Sample",value="obs") 
-  
-bac.env<-separate(bac.env,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
-bac.env$Junk=NULL
 
+bac.env<-bacteria.df.3 %>% 
+  gather(-taxon,key="Sample",value="obs") %>% 
+  separate(Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1))
+
+bac.env$Junk=NULL
 bac.env=droplevels(bac.env[-which(bac.env$Substrate=='CR'),])
 bac.env$Date=as.factor(bac.env$Date)
 bac.env$Date=revalue(bac.env$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
-bacteria.df.sp=bacteria.df.sp[,4:130] #custome value
-bacteria.df.sps=bacteria.df.sp[rowSums(bacteria.df.sp)!=0,]
-#dropping KC results in some rows having zero taxa, remove those rows!
+bac.df.sps<-bac.env %>% 
+  spread(key=taxon, value=obs) %>% 
+  select(-Date,-Substrate,-Rep)
 
 
-
-bac.ord.dist=vegdist(bacteria.df.sps)
+bac.ord.dist=vegdist(bac.df.sps)
 bac.ord.nmds=metaMDS(bac.ord.dist)
 bac.ORD=data.frame(MDS1=bac.ord.nmds$points[,1],MDS2=bac.ord.nmds$points[,2])
 bac.ORD=cbind(bac.ORD,env.df.fac)
