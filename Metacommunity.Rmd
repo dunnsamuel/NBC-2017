@@ -90,7 +90,7 @@ tax.levels$code<-seq(1,length(tax.levels$`levels(class.taxa$taxon)`),1)
 
 #glm
 full<-glm(NEP~.,family="gaussian",data=class.taxa)
-summary(full)
+#summary(full)
 step<-stepAIC(full,direction="both",trace=FALSE)
 step$anova
 
@@ -163,6 +163,8 @@ full_sum$model="All Data"
 
 lm_model_outputs<-rbind(pos_sum,neg_sum,full_sum)
 lm_model_outputs[,2:5]<-signif(lm_model_outputs[,2:5],4)
+
+
 htmlTable(lm_model_outputs)
 
 

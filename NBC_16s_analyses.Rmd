@@ -9,15 +9,25 @@ output:
   word_document: default
   
 ---
+## Introduction
+This document will guide you through some analyses for microbial communities.  The code below was written with Bacteria in mind, but can be applied to Algae or Fungi sequences as well as long as Mothur has been used to prepare the taxonomy summary table (see mothur documentaion).
 
-This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were compelted on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.
+In this document I will highlight areas where a user would need to change the code in order to apply it to their data.  This mainly has to deal with the way samples are labelled and experimental groups are organized (i.e. I compare Substrates, you may compare Sites, etc.).  Apart from this I do not advise editing the code unless you have first saved the original copy somewhere and are prepared to troubleshoot.  Additionally, these analyses represent onyla very small subset of common community metrics and this document is by no means an exhaustive one.  The R users on twitter (#rstats) and on stackoverflow are VERY helpful and genuinely want to help people learn how to do this, so don't be afraid to ask for help!
 
 
-```{r Load Data, include=FALSE,echo=FALSE,warning=FALSE}
-#rm(list = ls(all = TRUE))
-bacteria.df=read.csv("nbc16s.final.subsample.tax.summary.csv")
+## The Data Source
+This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were compelted on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.  This document was annotated and finalized in October 2018 as Sam was preparing to leave Loyola for another position doing data science.  If all else fails, Sam can be reached at samuel.t.dunn@gmail.com
+
+## Loading Packages and Data
+In Mothur we created a tax summary tabnle att he end of our process that we now will import here.  In R you should already have a Porject set up that is associated with a git reporsity.  If not, go do that now and come back.  In order for R to see your tax summary table, move it into the newly created project folder.   In the following code chunk, change the filne name (in "") to match your own...don't forget the file extension!  If you don't have a .csv file use the "read_delim" code that has been #out.
+```{r Load Data and Packages, warning=FALSE,echo=FALSE}
+
+bacteria.df=read.csv("nbc16s.final.subsample.tax.summary.csv") #csv formatted data from mothur
+#its.df<-read.delim(file="nbcits.final.an.0.01.cons.tax.summary") #otherwise formatted data from mothur
+
+##Loading Packages
 # ipak function: install and load multiple R packages.
-# check to see if packages are installed. Install them if they are not, then load them into the R session.
+# checks to see if packages are installed. Install them if they are not, then load them into the R session.
 
 ipak <- function(pkg){
     new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
@@ -26,181 +36,161 @@ ipak <- function(pkg){
     sapply(pkg, require, character.only = TRUE)
 }
 
-# usage
+# Package list.  Contains all needed packages as a this writing.  To update, simply add new package name to the list!
 packages <- c("ggplot2", 
               "plyr", 
               "reshape2", 
               "RColorBrewer", 
               "scales", 
               "grid",
-              "VennDiagram","bibtex",
+              "VennDiagram",
+              "bibtex",
               "vegan",
               "RAM",
               "tidyr",
-              "Rmisc","glue",
-              "reshape","reshape2","lemon",
-              "gapminder","magrittr","dplyr","ggpubr","gridExtra","patternplot","tibble","gplots","broom","data.table","devtools")
+              "Rmisc",
+              "glue",
+              "reshape",
+              "reshape2",
+              "lemon",
+              "gapminder",
+              "magrittr",
+              "dplyr",
+              "ggpubr",
+              "gridExtra",
+              "patternplot",
+              "tibble",
+              "gplots",
+              "broom",
+              "data.table",
+              "devtools")
 ipak(packages)
 
-install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
-library(pairwiseAdonis)
+#PAirwise adonis is an unofiical package that does pairwise PERMANOVA on community data.  it is marginally useful.  To active it, simply remove the # and re run the code.
+#install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+#library(pairwiseAdonis)
 theme_set(theme_gray(base_size = 18))
 pd=position_dodge(width=0.4)
 
-bacteria.df=bacteria.df[bacteria.df$taxon !="Chloroplast_ge",]
+bacteria.df=bacteria.df[bacteria.df$taxon !="Chloroplast_ge",] #We forgot to remove chloroplasts before in mothur...but we can do it now too!
 
 
 ```
 
 
+## Shannon Diversity
+There are many resources for you to learn about Shannon diversity...this is nto one.  I will show you how to calculate it for your data.  But first, a quick data science topic.  In data we often discuss "tall" and "wide" datasets. The data we have mothur give us in our summary table is "wide" data and in order to calculate Shannon diversity we need wide data.  What is wide data?  A wide datasheet has a column for each (in this case) sample.  By contrast a tall dataset would have 
+The "vegan" package is for diversity and other community metrics, the "RAM" packages is for evenness (vegan doesn't have it for some reason). 
 
-We have 1,737,300 sequences!  The "vegan" package is for diversity and other community metrics, the "RAM" packages is for evenness (vegan doesn't have it for some reason)
+The annotation for data preparation will be heaviest in this first code chunk.  Eahc chunk is able to stand alon, and a sa result we often repeat ourselves.  When things begin to differ I will add back in annotation.
 
 ```{r Shannon Diversity,echo=FALSE,warning=FALSE}
 
-#S=apply(bacteria.df[,6:65],2,sum)
-bacteria.df$taxlevel=as.factor(bacteria.df$taxlevel)
-bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
-
-shannon<-function(x){
-  shan.list=diversity(x,index="shannon")
-  return(shan.list)
-}
-
-
-shannon.nbc=apply(bacteria.df.6[,6:67],2,shannon)
+bacteria.df$taxlevel=as.factor(bacteria.df$taxlevel) #make sure taxlevel is a factor so we can pull out data  in the following analyses
+bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)  #6 is the species level  #kingdom=0
+#phylum=1
+#class=2
+#order=3
+#family=4
+#genus=5
+#species=6
 
 
+#you'll have to update your first and last sample column name in the "vars" argument below.  You will also need to look at your sample (column) names and adjust the arguments in the separate function.  Briefly, change the arguments int he "into" list to represent the number o chunks you can split your sample name into.  Secondly,the "sep"  says how many places fromt he left or right(-) the cuts should be made to separate.  The number of values in sep should each the number of groups in into less 1.
+shannon.nbc<-bacteria.df.6 %>% 
+  subset(select=c(-taxlevel,-rankID,-taxon,-daughterlevels,-total)) %>% 
+  mutate_at(vars(X170818HA:X170828HB),funs(diversity(.,index="shannon"))) %>%
+  gather(key="Sample",value="Diversity") %>%
+  distinct(Sample,Diversity) %>% 
+  separate(Sample, into=c("junk","Date","Substrate","Rep"), sep=c(1,7,-1))
+  
 
-list_to_df <- function(list_for_df) {
-  list_for_df <- as.list(list_for_df)
-
-  nm <- names(list_for_df)
-  if (is.null(nm))
-    nm <- seq_along(list_for_df)
-
-  df <- data.frame(name = nm, stringsAsFactors = FALSE)
-  df$value <- unname(list_for_df)
-  df
-}
-
-shannon.df=list_to_df(shannon.nbc)
-shannon.df$value=as.numeric(shannon.df$value)
-shannon.df$pielou=shannon.df$value/log(202685)
-
-
-
-shannon.df=separate(shannon.df,name,into=c("junk","Date","Substrate"),sep=c(1,7))
-shannon.df=separate(shannon.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-shannon.df$junk=NULL
-shannon.df=droplevels(shannon.df[-which(shannon.df$Substrate=='CR'),])
+#Clean up time.  First we remove the junk column altogether.  seconldy, we do some cleaning in case controls made it in.  Lastly we want to convert our "date" code into a "day of incuation" which we do manually with the revalue function.
+shannon.nbc$junk=NULL
+shannon.df=droplevels(shannon.nbc[-which(shannon.nbc$Substrate=='CR'),])
 shannon.df$Date=as.factor(shannon.df$Date)
 shannon.df$Date=revalue(shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-shannon.div.summary=summarySE(shannon.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
-shannon.even.summary=summarySE(shannon.df,measurevar="pielou",groupvars=c("Date","Substrate"),na.rm=TRUE)
 
-shannon.div.16s=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=value-se,ymax=value+se),width=0.3,position=pd)+ylab("Shannon Diversity (H')")+
-  theme_classic()+
-  theme(legend.position=c(0.25,0.95),
+#Now, we summarizse by Date and Susbtrate  and get means and se across our reps.  
+shannon.div.summary<-shannon.df %>% 
+  group_by(Date, Substrate) %>% 
+  summarise(mean=mean(Diversity),se=(sd(Diversity)/sqrt(n())))
+                          
+
+#Lets plot our summarizes data.
+#tell ggplot what data to plot and the basic aesthtetichs (aes) we want a line graph connecting points.  Date is on the x axis and the mean is on the y.  We are grouping them and adjustign their shape and colors by type of substrate.
+#adds points and lines to the plot
+
+shannon.div.16s=ggplot(shannon.div.summary,  aes(x=Date,y=mean,group=Substrate,shape=Substrate,fill=Substrate))+ 
+  geom_point(position=pd,size=4)+
+  geom_line(aes(linetype=Substrate),position=pd)+ 
+  geom_errorbar(aes(ymin=mean-se,ymax=mean+se),width=0.3,position=pd)+
+  ylab("Shannon Diversity (H')")+ 
+  theme_classic()+ #good generla theme for clean figures
+  theme(legend.position=c(0.25,0.95), #legends are ifnitiely tweakable
         legend.title=element_blank(),
         legend.direction="horizontal",
         axis.text=element_text(size=16),
         axis.title=element_text(size=16),
         legend.text=element_text(size=14))+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))+ggtitle("Bacterial Communities")+
-  scale_y_continuous(breaks=seq(0,5,0.1))
-shannon.div.16s
-
-tidy(shapiro.test(shannon.df$value))
-tidy(aov(value~Date+Substrate+Date:Substrate,data=shannon.df))
-
-shan.aov=shannon.df%>%
-  group_by(Date)%>%
-  do(tidy(aov(value~Substrate,data=.)))
-shan.aov
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))+ #I manually changed the shape of th points.  tehre is great additional supporting info online
+  ggtitle("Bacterial Communities")+
+  scale_y_continuous(breaks=seq(0,5,0.1)) #for consistency I am telling it to sacel y axis from 0 to 5 by 0.1 intervals
+shannon.div.16s #calls (views) the graph we made
 
 
+#ggsave lets you print your plots to jpegs, pdf, etc.  Just adjust the filename and device accordingly
 
-tukey.shan=shannon.df%>%
-  group_by(Date)%>%
-  do(multitst=TukeyHSD(aov(value~Substrate,data=.)))
-tukey.shan %>%tidy(multitst)
+#ggsave(shannon.div.16s,filename="shannon_plot.pdf",device="pdf")
 
 
-#geom_bar(stat="identity",position=position_dodge(0.9))+
+#Stats time
+shan.anova<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=shannon.df))
+shan.anova #this is its own dataframe now....you could easily export this to excel using the write_csv function!
 
-#,position=position_dodge(0.9)
 ```
 
-Shannon-wiener diveristy averaged across sampling replicates.  Bacterial communities aren't significantly different among substrate type but generally increase from the intial deployment to a maxima around day 10 and then egenrally decline as senescence of the biofilm occurs.
 
-```{r  Evenness,echo=FALSE,warning=FALSE}
 
-shannon.even=ggplot(shannon.even.summary, aes(x=Date,y=pielou,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=pielou-se,ymax=pielou+se),width=0.3,position=pd)+ylab("Pielou's Evenness")+
-  theme_classic()+
-  theme(legend.position=c(0.25,0.95),legend.title=element_blank(),legend.direction="horizontal",
-        axis.text=element_text(size=16),
-        axis.title=element_text(size=16),
-        legend.text=element_text(size=14))+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
-shannon.even
-```
 
-Pielou's evenness is the standard evenness metric.  It mirrors what we observe in the shannon diversity.
-
-Now that we have these done, let's move on to richness.  Since the species concept doesn't work too well with bacteria (screw you lateral gene transfer).  We will define unqiue otus (operational taxonomic units).  I select only taxa that are present by defniing an observationThreshold.  This could be re-worked to eleimnate singletons for future work.
+## Richness
+Since the species concept doesn't work too well with bacteria (screw you lateral gene transfer).  We will define unqiue otus (operational taxonomic units).  I select only taxa that are present by defniing an observationThreshold.  This could be re-worked to eleimnate singletons for future work.
 
 ```{r OTU count (richness), echo=FALSE,warning=FALSE}
 bacteria.df$taxlevel=as.factor(bacteria.df$taxlevel)
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
-observationThreshold = 1
-otu=apply(bacteria.df.6[,6:67]>=observationThreshold, 2, sum,na.rm=T)
-otu.0=apply(bacteria.df.6[,6:67],2,sum,na.rm=T)
 
-list_to_df <- function(list_for_df) {
-  list_for_df <- as.list(list_for_df)
+otu.df<-bacteria.df.6 %>% 
+  subset(select=c(-taxlevel,-rankID,-taxon,-daughterlevels,-total)) %>% 
+  mutate_at(vars(X170818HA:X170828HB),funs(n_distinct(.))) %>% #We calculate the number of distinct taxa here!
+  gather(key="Sample",value="OTU") %>%
+  distinct(Sample,OTU) %>% 
+  separate(Sample, into=c("junk","Date","Substrate","Rep"), sep=c(1,7,-1))
 
-  nm <- names(list_for_df)
-  if (is.null(nm))
-    nm <- seq_along(list_for_df)
 
-  df <- data.frame(name = nm, stringsAsFactors = FALSE)
-  df$value <- unname(list_for_df)
-  df
-}
-
-otu.df=list_to_df(otu)
-otu.df$value=as.numeric(otu.df$value)
-otu.df=separate(otu.df,name,into=c("junk","Date","Substrate"),sep=c(1,7))
-otu.df=separate(otu.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
 otu.df$junk=NULL
 otu.df=droplevels(otu.df[-which(otu.df$Substrate=='CR'),])
 otu.df$Date=as.factor(otu.df$Date)
 otu.df$Date=revalue(otu.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-out.aov=otu.df%>%
+otu.aov=otu.df%>%
   group_by(Date)%>%
-  do(tidy(aov(value~Substrate,data=.)))
-out.aov
-
-tukey.out=otu.df%>%
-  group_by(Date)%>%
-  do(multitst=TukeyHSD(aov(value~Substrate,data=.)))
-tukey.out %>%tidy(multitst)
+  do(tidy(aov(OTU~Substrate,data=.)))
+otu.aov
 
 
 
-otu.df.summary=summarySE(otu.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
+
+otu.df.summary=summarySE(otu.df,measurevar="OTU",groupvars=c("Date","Substrate"),na.rm=TRUE)
+#This is another, simpler form of summarizing info for plotting purposes.  I chose to leave this here as an example of how making a summary table works if you don't have to do it multiple times.
 
 pd=position_dodge(width=0.4)
-otu.plot=ggplot(otu.df.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=value-se,ymax=value+se),width=0.3,position=pd)+
+otu.plot=ggplot(otu.df.summary, 
+                aes(x=Date,y=OTU,group=Substrate,shape=Substrate,fill=Substrate))+
+  geom_point(position=pd,size=4)+
+  geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=OTU-se,ymax=OTU+se),width=0.3,position=pd)+
   ylab("Observed OTUs")+
   theme_classic()+
   theme(legend.position=c(0.25,0.95),
@@ -220,37 +210,37 @@ From here on out the taxonomic cutoff set for genus level, can restirct to phylu
 
 ```{r Stacked Bar Plots,echo=FALSE,warning=FALSE,include=FALSE}
 
-
+#slightly different approach here.  We are removign columns instead of ignoring them like we have previously.  This is because ti's a little cleaner to do so and this analsyis is a little mroe ocmplicated.
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
-bacteria.df.3$taxlevel=NULL
+bacteria.df.3$taxlevel=NULL 
 bacteria.df.3$rankID=NULL
 bacteria.df.3$daughterlevels=NULL
 bacteria.df.3$total=NULL
+
 bac.rab<-bacteria.df.3 %>% 
   gather(-taxon,key="Sample",value="obs") 
   
-bac.rab<-bac.rab %>%   #rabund calculations
+bac.rab<-bac.rab %>%   #relative abundance calculations
   group_by(Sample) %>% 
   mutate(total_obs=sum(obs),
-         rabund=obs/total_obs)
+         rabund=obs/total_obs) %>% 
+  separate(Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1))
 
 
 
-bac.rab<-separate(bac.rab,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
 bac.rab$Junk=NULL
-
 rabund.df=droplevels(bac.rab[-which(bac.rab$Substrate=='CR'),])
 rabund.df$Date=as.factor(rabund.df$Date)
 rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
 
 rabund.sum.df<-rabund.df %>% 
-  group_by(Date,Substrate,taxon) %>% 
+  group_by(Date,Substrate,taxon) %>% #note the inlcusion of taxon as a group to summarise by.  We want the mean of each taxon in each Date-Substrate combination
   summarise(mean_rabund=mean(rabund),
             mean_obs=mean(obs))
 
 
-
+##making multiple plots!
 rabund.plots<-rabund.sum.df %>% #generates list of plots by Date (groubp_by command)  
   group_by(Date) %>% 
   do(plots=ggplot(.,aes(x=Substrate,y=mean_rabund,group=taxon,color=taxon,fill=taxon))+
@@ -259,19 +249,21 @@ rabund.plots<-rabund.sum.df %>% #generates list of plots by Date (groubp_by comm
        ylab("Relative Abundance")+
        xlab("Substrate")+
        theme_classic())
-rabund.plots$plots[[1]] #calls first plot from list of plots
+rabund.plots$plots[[1]] #calls first plot from list of plots. Repeat for as many plots as you expect
 
 
 
 
 ```
+Making the same plot over and over again is tedious.  We can suualyl automate this by following a process similar to that above.  In situtions where there are lots of data and lots of groups this can potentially take a while to run.  Also, it is good adivce to never have it print the first time yout ry running it...just in case somethign is fishy.
 
-Subset rabund stacked bars by date, four panel plot, each panel is sampling event.  There appear to be shifts in relative abundances over the course of the incubation.  Data aggregated at phylum level to enhance visibility.  Let's convert this concept to heatmaps.
 
+## Heatmaps
+There are 16 millions color shades in R....and this makes it hard to see subtle changes.  Heatmaps offer another visual tool to get an overview of yoru community.  We add in factes to allow us t compare different Substrates, times, etc.
 
 ```{r heatmap,warning=FALSE,echo=FALSE,fig.height=11,fig.width=8.5,fig.align="center"}
 
-bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE)
+bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE) #Note the higher tax level...purely from a visualization standpoint
 bacteria.df.3$taxlevel=NULL
 bacteria.df.3$rankID=NULL
 bacteria.df.3$daughterlevels=NULL
@@ -300,9 +292,11 @@ rabund.sum.df<-rabund.df %>%
 
 
 
-require(viridis)
-ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+geom_tile()+
-  facet_wrap(~Substrate,nrow=1)+scale_fill_viridis()+
+require(viridis) #viridis is a package of alternative color scales to allow for high contrast observations....i.e. whent here are very subtle changes.
+ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+
+  geom_tile()+
+  facet_wrap(~Substrate,nrow=1)+#facet wrap splits our graph into multiuple chunks where each has a unique valeu for some factor
+  scale_fill_viridis()+ 
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10),
         legend.text=element_text(size=10))+
@@ -310,24 +304,64 @@ ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+geom_tile()+
   xlab("Day of Incubation")
   
 #ggsave("hm.jpeg", device="jpeg", width=7, height=10,units="in")
+#you can also set dimensions when your print your figures
 ```
-Great!  Subsetting tot he level 4 tax, order, makes for a readable plot with meaningful resolution.
 
-Switching gear, lets approach this from a multivariat approach.  Ordination approaches allow us to plot our community data in two dimensions very well.  With the envfit function we can correlate our environmental and laboratory assays with our communities.  The envfit function uses the matix of ordination scores.
+
+
+## Multivariate Stats and Visualizations
+
+Switching gear, lets approach this from a multivariat approach.  Ordination approaches allow us to plot our community data in two dimensions very well. We do this by first calculating a distance matrix (Bray Curtis usually) and then conduct and NMDS ont he distance matrix.  With the envfit function we can correlate our environmental and laboratory assays with our nmds results ot try and find explanatory power.  
 
 ```{r Envfit plots,warning=FALSE,echo=FALSE}
-env.df <- read.csv("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/env.df.csv")
-env.drops=c("8/15/2017","8/22/2017","8/25/2017","9/1/2017","9/8/2017","9/12/2017") #beware of date format shifts in excel!!
+env.df <- read.csv("env.df.csv") #external data for vector fitting (laba ssays, field data,etc)
+env.drops=c("8/15/2017",
+            "8/22/2017",
+            "8/25/2017",
+            "9/1/2017",
+            "9/8/2017",
+            "9/12/2017") #beware of date format shifts in excel!!  I am dropping dates from the env.df because I didn't get community measurements for each date
+
+
 env.df=droplevels(env.df[!(env.df$Date.Sampled %in% env.drops),],drop=TRUE)
-colnames(env.df)=c("Date_Sampled","Substrate","NEP","GPP","Respiration","BG-ase","NAG-ase","P-ase",
-                   "Chl.a","Biomass","Day of Incubation","SRP","NO3","NH4","doy","width","xdepth","xvelocity",
-              "xtemp","xspc","Q")
+colnames(env.df)=c("Date_Sampled",
+                   "Substrate",
+                   "NEP",
+                   "GPP",
+                   "Respiration",
+                   "BG-ase",
+                   "NAG-ase",
+                   "P-ase",
+                   "Chl.a",
+                   "Biomass",
+                   "Day of Incubation",
+                   "SRP",
+                   "NO3",
+                   "NH4",
+                   "doy",
+                   "width",
+                   "xdepth",
+                   "xvelocity",
+                   "xtemp",
+                   "xspc",
+                   "Q")
 
-env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xvelocity",
-              "xtemp","xspc","Q")
-env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
+env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I specified some columns to ignore (summary columns, duplicates, etc)
+              "Date.Sampled",
+              "Sample",
+              "time",
+              "doy",
+              "width",
+              "xdepth",
+              "xvelocity",
+              "xtemp",
+              "xspc",
+              "Q")
 
-env.df.fac=env.df[,1:2]
+
+env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
+
+env.df.fac=env.df[,1:2] #
 
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
 bacteria.df.3$taxlevel=NULL
