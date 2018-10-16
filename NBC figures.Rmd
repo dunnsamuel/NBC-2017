@@ -16,7 +16,7 @@ output:
 #opts_chunk$set(echo = FALSE, cache=FALSE)
 library(knitr)
 load(file="assays.Rdata")
-load(file="glm.Rdata")
+glm=readRDS(file="glm.Rdata")
 
 ```
 
