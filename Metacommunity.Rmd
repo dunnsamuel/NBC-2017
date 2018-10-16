@@ -21,13 +21,33 @@ packages <- c("ggplot2",
               "RColorBrewer", 
               "scales", 
               "grid",
-              "VennDiagram","bibtex",
+              "VennDiagram",
+              "bibtex",
               "vegan",
               "RAM",
               "tidyr",
-              "Rmisc","glue",
-              "reshape","reshape2","lemon",
-              "gapminder","magrittr","dplyr","ggpubr","gridExtra","MASS","patternplot","tibble","gplots","broom","data.table","devtools","lubridate","caret","glmulti","htmlTable")
+              "Rmisc",
+              "glue",
+              "reshape",
+              "reshape2",
+              "lemon",
+              "gapminder",
+              "magrittr",
+              "dplyr",
+              "ggpubr",
+              "gridExtra",
+              "MASS",
+              "patternplot",
+              "tibble",
+              "gplots",
+              "broom",
+              "data.table",
+              "devtools",
+              "lubridate",
+              "caret",
+              "glmulti",
+              "htmlTable",
+              "xlsx")
 ipak(packages)
 
 met.data<-readRDS("metdata.Rdata")
@@ -164,8 +184,9 @@ full_sum$model="All Data"
 lm_model_outputs<-rbind(pos_sum,neg_sum,full_sum)
 lm_model_outputs[,2:5]<-signif(lm_model_outputs[,2:5],4)
 
-
+saveRDS(lm_model_outputs,"glm.Rdata")
 htmlTable(lm_model_outputs)
+write.xlsx(lm_model_outputs,"glm_mod.xlsx")
 
 
 

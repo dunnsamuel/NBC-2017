@@ -1,26 +1,26 @@
 ---
-title: "NBC 16s Analyses.`r format(Sys.time(), '%d %B, %Y')`"
+title: "Community Analyses (16s)"
 author: "Sam Dunn"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
+  
+  word_document: default
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
-  word_document: default
-  
 ---
 ## Introduction
-This document will guide you through some analyses for microbial communities.  The code below was written with Bacteria in mind, but can be applied to Algae or Fungi sequences as well as long as Mothur has been used to prepare the taxonomy summary table (see mothur documentaion).
+This document will guide you through some analyses for microbial communities.  The code below was written with Bacteria in mind, but can be applied to Algae or Fungi sequences as well as long as Mothur has been used to prepare the taxonomy summary table (see mothur documentation).
 
-In this document I will highlight areas where a user would need to change the code in order to apply it to their data.  This mainly has to deal with the way samples are labelled and experimental groups are organized (i.e. I compare Substrates, you may compare Sites, etc.).  Apart from this I do not advise editing the code unless you have first saved the original copy somewhere and are prepared to troubleshoot.  Additionally, these analyses represent onyla very small subset of common community metrics and this document is by no means an exhaustive one.  The R users on twitter (#rstats) and on stackoverflow are VERY helpful and genuinely want to help people learn how to do this, so don't be afraid to ask for help!
+In this document I will highlight areas where a user would need to change the code in order to apply it to their data.  This mainly has to deal with the way samples are labelled and experimental groups are organized (i.e. I compare Substrates, you may compare Sites, etc.).  Apart from this I do not advise editing the code unless you have first saved the original copy somewhere and are prepared to troubleshoot.  Additionally, these analyses represent only a very small subset of common community metrics and this document is by no means an exhaustive one.  The R users on twitter (#rstats) and on stack-overflow are VERY helpful and genuinely want to help people learn how to do this, so don't be afraid to ask for help!
 
 
 ## The Data Source
-This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were compelted on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.  This document was annotated and finalized in October 2018 as Sam was preparing to leave Loyola for another position doing data science.  If all else fails, Sam can be reached at samuel.t.dunn@gmail.com
+This is the graphing and statistical analyses for the 16s sequences collected for the NBC project in 2017.  Analyses began in Mothur on April 4th 2018 and were completed on April 18th 2018.  A taxonomic summary was exported from mothur to R on 4/19/2018 and edits have been ongoing.  This document was annotated and finalized in October 2018 as Sam was preparing to leave Loyola for another position doing data science.  If all else fails, Sam can be reached at Samuel.t.Dunn@gmail.com
 
 ## Loading Packages and Data
-In Mothur we created a tax summary tabnle att he end of our process that we now will import here.  In R you should already have a Porject set up that is associated with a git reporsity.  If not, go do that now and come back.  In order for R to see your tax summary table, move it into the newly created project folder.   In the following code chunk, change the filne name (in "") to match your own...don't forget the file extension!  If you don't have a .csv file use the "read_delim" code that has been #out.
-```{r Load Data and Packages, warning=FALSE,echo=FALSE}
+In Mothur we created a tax summary table at he end of our process that we now will import here.  In R you should already have a Project set up that is associated with a git repository.  If not, go do that now and come back.  In order for R to see your tax summary table, move it into the newly created project folder.   In the following code chunk, change the file name (in "") to match your own...don't forget the file extension!  If you don't have a .csv file use the "read_delim" code that has been #out.
+```{r Load Data and Packages, warning=FALSE,message=FALSE}
 
 bacteria.df=read.csv("nbc16s.final.subsample.tax.summary.csv") #csv formatted data from mothur
 #its.df<-read.delim(file="nbcits.final.an.0.01.cons.tax.summary") #otherwise formatted data from mothur
@@ -63,7 +63,8 @@ packages <- c("ggplot2",
               "gplots",
               "broom",
               "data.table",
-              "devtools")
+              "devtools",
+              "xlsx")
 ipak(packages)
 
 #PAirwise adonis is an unofiical package that does pairwise PERMANOVA on community data.  it is marginally useful.  To active it, simply remove the # and re run the code.
@@ -79,12 +80,12 @@ bacteria.df=bacteria.df[bacteria.df$taxon !="Chloroplast_ge",] #We forgot to rem
 
 
 ## Shannon Diversity
-There are many resources for you to learn about Shannon diversity...this is nto one.  I will show you how to calculate it for your data.  But first, a quick data science topic.  In data we often discuss "tall" and "wide" datasets. The data we have mothur give us in our summary table is "wide" data and in order to calculate Shannon diversity we need wide data.  What is wide data?  A wide datasheet has a column for each (in this case) sample.  By contrast a tall dataset would have 
+There are many resources for you to learn about Shannon diversity...this is not one.  I will show you how to calculate it for your data.  But first, a quick data science topic.  In data we often discuss "tall" and "wide" data sets. The data we have mothur give us in our summary table is "wide" data and in order to calculate Shannon diversity we need wide data.  What is wide data?  A wide datasheet has a column for each (in this case) sample.  By contrast a tall data set would have 
 The "vegan" package is for diversity and other community metrics, the "RAM" packages is for evenness (vegan doesn't have it for some reason). 
 
-The annotation for data preparation will be heaviest in this first code chunk.  Eahc chunk is able to stand alon, and a sa result we often repeat ourselves.  When things begin to differ I will add back in annotation.
+The annotation for data preparation will be heaviest in this first code chunk.  Each chunk is able to stand alone, and a a result we often repeat ourselves.  When things begin to differ I will add back in annotation.
 
-```{r Shannon Diversity,echo=FALSE,warning=FALSE}
+```{r Shannon Diversity,warning=FALSE}
 
 bacteria.df$taxlevel=as.factor(bacteria.df$taxlevel) #make sure taxlevel is a factor so we can pull out data  in the following analyses
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)  #6 is the species level  #kingdom=0
@@ -155,9 +156,9 @@ shan.anova #this is its own dataframe now....you could easily export this to exc
 
 
 ## Richness
-Since the species concept doesn't work too well with bacteria (screw you lateral gene transfer).  We will define unqiue otus (operational taxonomic units).  I select only taxa that are present by defniing an observationThreshold.  This could be re-worked to eleimnate singletons for future work.
+Since the species concept doesn't work too well with bacteria (screw you lateral gene transfer).  We will define unique otus (operational taxonomic units).  I select only taxa that are present by defining an observation Threshold.  This could be re-worked to eliminate singletons for future work.
 
-```{r OTU count (richness), echo=FALSE,warning=FALSE}
+```{r OTU count (richness), warning=FALSE}
 bacteria.df$taxlevel=as.factor(bacteria.df$taxlevel)
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
 
@@ -174,10 +175,7 @@ otu.df=droplevels(otu.df[-which(otu.df$Substrate=='CR'),])
 otu.df$Date=as.factor(otu.df$Date)
 otu.df$Date=revalue(otu.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-otu.aov=otu.df%>%
-  group_by(Date)%>%
-  do(tidy(aov(OTU~Substrate,data=.)))
-otu.aov
+
 
 
 
@@ -201,17 +199,22 @@ otu.plot=ggplot(otu.df.summary,
         legend.text=element_text(size=14))+
   scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
 otu.plot
+
+otu.anova<-tidy(aov(OTU~Date+Substrate+Date:Substrate,data=otu.df))
+otu.anova #this is its own dataframe now....you could easily export this to excel using the write_csv function!
+
 ```
 
-From here on out the taxonomic cutoff set for genus level, can restirct to phylum to match up with stacked bar plots below.  Stacked bar plots kidn fo suck IMHO...but they are a good first cut for finding patterns.
+From here on out the taxonomic cutoff set for genus level, can restrict to phylum to match up with stacked bar plots below.  Stacked bar plots are not my favorite, but they are a good first cut for finding patterns.
 
 
+## Stacked Bars
+Great exploration tool ,but user be warned they can get very hard to read!  We will practice having R do multiple things at once for us.  In general if you find yourself writing the same code over and over again you can probably automate that (but not always!)
 
-
-```{r Stacked Bar Plots,echo=FALSE,warning=FALSE,include=FALSE}
+```{r Stacked Bar Plots,warning=FALSE,message=FALSE}
 
 #slightly different approach here.  We are removign columns instead of ignoring them like we have previously.  This is because ti's a little cleaner to do so and this analsyis is a little mroe ocmplicated.
-bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
+bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE)
 bacteria.df.3$taxlevel=NULL 
 bacteria.df.3$rankID=NULL
 bacteria.df.3$daughterlevels=NULL
@@ -255,13 +258,15 @@ rabund.plots$plots[[1]] #calls first plot from list of plots. Repeat for as many
 
 
 ```
-Making the same plot over and over again is tedious.  We can suualyl automate this by following a process similar to that above.  In situtions where there are lots of data and lots of groups this can potentially take a while to run.  Also, it is good adivce to never have it print the first time yout ry running it...just in case somethign is fishy.
+
+##
+Making the same plot over and over again is tedious.  We can usually automate this by following a process similar to that above.  In situations where there are lots of data and lots of groups this can potentially take a while to run.  Also, it is good advice to never have it print the first time your try running it...just in case something is fishy.
 
 
-## Heatmaps
-There are 16 millions color shades in R....and this makes it hard to see subtle changes.  Heatmaps offer another visual tool to get an overview of yoru community.  We add in factes to allow us t compare different Substrates, times, etc.
+## Heat-maps
+There are 16 millions color shades in R....and this makes it hard to see subtle changes.  Heat-maps offer another visual tool to get an overview of your community.  We add in facets to allow us t compare different Substrates, times, etc.
 
-```{r heatmap,warning=FALSE,echo=FALSE,fig.height=11,fig.width=8.5,fig.align="center"}
+```{r heatmap,warning=FALSE,message=FALSE, fig.height=11,fig.width=8.5,fig.align="center"}
 
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==2,drop=TRUE) #Note the higher tax level...purely from a visualization standpoint
 bacteria.df.3$taxlevel=NULL
@@ -311,9 +316,9 @@ ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+
 
 ## Multivariate Stats and Visualizations
 
-Switching gear, lets approach this from a multivariat approach.  Ordination approaches allow us to plot our community data in two dimensions very well. We do this by first calculating a distance matrix (Bray Curtis usually) and then conduct and NMDS ont he distance matrix.  With the envfit function we can correlate our environmental and laboratory assays with our nmds results ot try and find explanatory power.  
+Switching gear, lets approach this from a multivariate approach.  Ordination approaches allow us to plot our community data in two dimensions very well. We do this by first calculating a distance matrix (Bray Curtis usually) and then conduct and NMDS on he distance matrix.  With the envfit function we can correlate our environmental and laboratory assays with our nmds results to try and find explanatory power.  
 
-```{r Envfit plots,warning=FALSE,echo=FALSE}
+```{r Envfit plots,warning=FALSE,messages=FALSE}
 env.df <- read.csv("env.df.csv") #external data for vector fitting (laba ssays, field data,etc)
 env.drops=c("8/15/2017",
             "8/22/2017",
@@ -361,7 +366,7 @@ env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I spe
 
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
 
-env.df.fac=env.df[,1:2] #
+env.df.fac=env.df[,1:2] #We want to copy the first two columns of site  data here.  We can't have ANY site data present when we do our ordination.  We will reattache this site data tot he ordination table afterwards so we can make inferences and good figures.
 
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
 bacteria.df.3$taxlevel=NULL
@@ -380,76 +385,97 @@ bac.env$Date=revalue(bac.env$Date,c("170818"="3","170828"="10","170905"="21","17
 
 
 bac.df.sps<-bac.env %>% 
-  spread(key=taxon, value=obs) %>% 
+  spread(key=taxon, value=obs) %>% #spread take a tall data table and makes it wide.  each "key" value becomes a column populated by the "value"
   select(-Date,-Substrate,-Rep)
 
 
-bac.ord.dist=vegdist(bac.df.sps)
-bac.ord.nmds=metaMDS(bac.ord.dist)
-bac.ORD=data.frame(MDS1=bac.ord.nmds$points[,1],MDS2=bac.ord.nmds$points[,2])
-bac.ORD=cbind(bac.ORD,env.df.fac)
+bac.ord.dist=vegdist(bac.df.sps) #vegdist in the vegab package does distances.  Bray-Curtis is default but can do many many more.
+bac.ord.nmds=metaMDS(bac.ord.dist) # We use our distance matrix fromt he above line to run our NMDS
+bac.ORD=data.frame(MDS1=bac.ord.nmds$points[,1],MDS2=bac.ord.nmds$points[,2])# We want to extract the X and Y coordinates for our NMDS.  
+bac.ORD=cbind(bac.ORD,env.df.fac) # We paste our site data extracted above to our NMKS coordinates so we cna make figures, etc.
 
-bac.fit=envfit(bac.ord.nmds,env.df.fit,perm=999,na.rm=T,display="sites")
-bac.fit
-bac.fit.df=as.data.frame(bac.fit$vectors$arrows*sqrt(bac.fit$vectors$r))
-bac.fit.df$species=rownames(bac.fit.df)
+bac.fit=envfit(bac.ord.nmds,env.df.fit,perm=999,na.rm=T,display="sites") #Envfit is a vector fitting fucntiont hat can identify correlations between NMDS points and other data.  This is more appropriate to use on SITE data with COMMUNITY NMDS.    
+#bac.fit
+bac.fit.df=as.data.frame(bac.fit$vectors$arrows*sqrt(bac.fit$vectors$r)) #exracting the data to plot the vectors
+bac.fit.df$species=rownames(bac.fit.df) #converting rownmaes (inaccesible data) to a column (accessible data)
 bac.spp.scrs=as.data.frame(scores(bac.fit,display="vectors"))
-bac.spp.scrs=cbind(bac.spp.scrs, Assay=rownames(bac.spp.scrs),bac.fit$vectors$pvals)
-bac.spp.scrs=setnames(bac.spp.scrs, old=("bac.fit$vectors$pvals"), new=c("pvals"))
-bac.spp.scrs=bac.spp.scrs[ which (bac.spp.scrs$pvals<0.05),]
+bac.spp.scrs=cbind(bac.spp.scrs, Assay=rownames(bac.spp.scrs),bac.fit$vectors$pvals) #Combining vector coordinates, pvalues etc into a data table for plotting 
+bac.spp.scrs=setnames(bac.spp.scrs, old=("bac.fit$vectors$pvals"), new=c("pvals")) #Changing the name for clarity's sake
+bac.spp.scrs=bac.spp.scrs[ which (bac.spp.scrs$pvals<0.05),] #Here we select only the  vectors whose p.vals are less than 0.05.
 
-
+## Ellipses.  The following tow functions are custom creations to generate elipses for our NMDS plot
  veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100) 
   {
     theta <- (0:npoints) * 2 * pi/npoints
     Circle <- cbind(cos(theta), sin(theta))
     t(center + scale * t(Circle %*% chol(cov)))
  }
+ 
 bac.df_ell <- data.frame()
-  for(g in levels(bac.ORD$Substrate)){
+  for(g in levels(bac.ORD$Substrate)){ # you will have to update some of these fields ....look for bac.ORD, Substrate, etc.
     bac.df_ell <- rbind(bac.df_ell, cbind(as.data.frame(with(bac.ORD[bac.ORD$Substrate==g,],
                     veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
                     ,group=g))
   }
 
+#Plotting oru NDMS
 bac.nmds=ggplot(bac.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+coord_fixed(ratio=1)+
-  geom_segment(data=bac.spp.scrs, aes(x=0, xend=bac.spp.scrs$NMDS1/4, y=0,yend=bac.spp.scrs$NMDS2/4),
-               arrow=arrow(length=unit(.1, "cm")),color="red")+
-  geom_text(data = bac.spp.scrs, aes(x = NMDS1/4.5, y = NMDS2/4.5, label = Assay),
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+
+  coord_fixed(ratio=1)+
+  geom_segment(data=bac.spp.scrs, #lines for vectors
+               aes(x=0, xend=bac.spp.scrs$NMDS1/4, y=0,yend=bac.spp.scrs$NMDS2/4),
+               arrow=arrow(length=unit(.1, "cm")),
+               color="red")+
+  geom_text(data = bac.spp.scrs, #labels for vectors
+            aes(x = NMDS1/4.5, y = NMDS2/4.5, label = Assay),
             size = 3) +
-    geom_path(data=bac.df_ell, aes(x=MDS1, y=MDS2,colour=group), size=1, linetype=2)+ggtitle("Bacterial Communities")+theme_classic()+labs(shape="Date Sampled", color="Substrate")+xlim(-0.3,0.3)+ylim(-0.3,0.3)
+  geom_path(data=bac.df_ell, #ellipses
+              aes(x=MDS1, y=MDS2,colour=group), 
+              size=1, linetype=2)+
+  ggtitle("Bacterial Communities")+
+  theme_classic()+
+  labs(shape="Date Sampled", 
+       color="Substrate")+
+  xlim(-0.3,0.3)+
+  ylim(-0.3,0.3)
 bac.nmds
 
+## The scores and stress values are important metrics of NMDS quality
 #scores(bac.fit, "vectors")
 #bac.ord.nmds$stress
 
+
+## These plots  use the facet grod approach to pull out the plot for each level of a factor (types of substrate for sinatcne)
 ggplot(bac.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+facet_grid(.~Date_Sampled)
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+
+  facet_grid(.~Date_Sampled)
 
 ggplot(bac.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+facet_grid(.~Substrate)
+  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,group=Substrate))+
+  facet_grid(.~Substrate)
 
-#This section should really be its own chunk.  betadisper compares the area of the collected nmds points for each group you specifiy and compares it to your other group areas (a la anova)
+
+#This section should really be its own chunk, but since it relies directly on the distance matrices we just calculated it makes sense to just keep it here.  
+#betadisper compares the area of the collected nmds points for each group you specifiy and compares it to your other group areas (a la anova).  It is analgous to homogeneity of variance test and is a great way to visualize your ordination.
 
 #http://cc.oulu.fi/~jarioksa/softhelp/vegan/html/betadisper.html
-bac.disp.Sample=betadisper(bac.ord.dist,bac.ORD$Substrate)
-bac.disp.Date=betadisper(bac.ord.dist,bac.ORD$Date_Sampled)
-bac.perm.date=permutest(bac.disp.Date, pairwise=TRUE,permutations=1000) 
-TukeyHSD(bac.disp.Sample) #compaitble with tukeyhsd for pairwise comparions!
+bac.disp.Sample=betadisper(bac.ord.dist,bac.ORD$Substrate) #Grouping by Substrate type
+bac.disp.Date=betadisper(bac.ord.dist,bac.ORD$Date_Sampled) #Grouping by Date
+bac.perm.date=permutest(bac.disp.Date, pairwise=TRUE,permutations=1000) #analgous to an anova
+TukeyHSD(bac.disp.Sample) #compaitble with tukeyhsd for pairwise comparions!  Are there significant differences in variances between our groups?
 bac.perm.sample=permutest(bac.disp.Sample, pairwise=TRUE,permutations=1000)
 TukeyHSD(bac.disp.Date)
-bac.disp.Sample
+bac.disp.Sample #lets plots the results.  NOte the use of capiatlization and lower case in the last term name....this is intentional!
 bac.disp.Date
 #test pairwise comparions between groups in nmds
 
 
 ```
 
+## PERMANOVA
+Okay.  So, we probably don't have any differences between our groups, but let's find out for certain.  PERMANOVA is the analysis of variance using distance matrices (bray-curtis in our case).  It is non-parametric and robust to non-normal data.  However, it does require that there be no missing data.  The approach here is very similar to that of the envfit and NMDS section above.  however in this case we don't visualize our results as a figure, but rather a a table.
 
-Okay.  So, we probably don't have any differences between our groups, but let's find out for certain.  PERMANOVA is the analysis of variance using distance matricies (bray-curtis in our case).  It is non-paramteric and robust.
-
-```{r PERMANOVA, echo=FALSE, warning=FALSE}
+```{r PERMANOVA, warning=FALSE}
 bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)
 bacteria.df.6$taxlevel=NULL
 bacteria.df.6$rankID=NULL
@@ -468,91 +494,59 @@ bac.perm=droplevels(bac.perm[-which(bac.perm$Substrate=='CR'),])
 bac.perm$Date=as.factor(bac.perm$Date)
 bac.perm$Date=revalue(bac.perm$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-anosim.bac.df<-bac.perm %>% 
+anosim.bac.df<-bac.perm %>% #originally I was trying to use ANOSIM, but PERMANOVA ended up being mroe appropriate...I was too lazy to change the names.
   spread(key="taxon",value="obs")
 
+#The above is all the same as you've seen ebfore.  It may seem redundant, but it is very important that every analysis be able to stand alone if need be.  This saves time on computation (you don't have to re-run the whole file) and makes it much mroe shareable.
 
 
 
 
 
+design.df=anosim.bac.df[,1:3] #We create a design dataframe fromt he Date, Substrate and Rep columns.  Just like before we can't have any non-numeric data present for the matrix caclulations.  This time we will call this design file directly in the function call.
 
-design.df=anosim.bac.df[,1:3]
-
-
+#remove the design file columns from the matrix
 anosim.bac.df$Date=NULL
 anosim.bac.df$Substrate=NULL
 anosim.bac.df$Rep=NULL
 
-bac.dist<-anosim.bac.df %>% 
-  group_by(Date) %>% 
-  do(vegdist(.))
-
-
-bac.dist=vegdist(anosim.df)
-bac.ano=anosim(bac.dist,design.df$Substrate)
+#Here we are creating distances for the PERMANOVA
+bac.dist=vegdist(anosim.bac.df)
+bac.ano=anosim(bac.dist,design.df$Substrate) # I left ANOSIM in here just for kicks.  Read about it here 
 summary(bac.ano)
 
 
-list_to_df <- function(list_for_df) {
-  list_for_df <- as.list(list_for_df)
-
-  nm <- names(list_for_df)
-  if (is.null(nm))
-    nm <- seq_along(list_for_df)
-
-  df <- data.frame(name = nm, stringsAsFactors = FALSE)
-  df$value <- unname(list_for_df)
-  df
-}
-
-
-bac.perm=print(adonis(anosim.df~Substrate*Date,data=design.df))
+# Running the permanova
+bac.perm=print(adonis(anosim.bac.df~Substrate*Date,data=design.df)) #the adonis() function is what calculates the PERMANOVA.  The interaction term is automatic and does not need to explicitly coded
 bac.perm.tab=as.data.frame(bac.perm$aov.tab)
 bac.perm.tab=bac.perm.tab[1:3,]
+bac.perm.tab<-rownames_to_column(bac.perm.tab,var="Term") #createing a term column from rownames
+bac.perm.tab # prints the table
 
-adonis(anosim.3~Substrate,data=design.3) #ns
-adonis(anosim.10~Substrate,data=design.10) #ns
-adonis(anosim.21~Substrate,data=design.21) #ns
-adonis(anosim.31~Substrate,data=design.31) #ns
+write.xlsx(bac.perm.tab,"permanova.table.xlsx")
 
-pairwise.adonis(anosim.3,factors=design.3$Substrate, 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
-pairwise.adonis(anosim.10,factors=design.10$Substrate, 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
-pairwise.adonis(anosim.21,factors=design.21$Substrate, 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
-pairwise.adonis(anosim.31,factors=design.31$Substrate, 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
+## Pairwise adonis is a user-created function on github.  It can be marginally helpful so I left it here but de-activated.
+#pairwise.adonis(anosim.df,factors=c(design.df$Substrate), 
+              #  sim.method = 'bray', 
+              #  p.adjust.m ='bonferroni')
 
-
-pairwise.adonis(anosim.df,factors=c(design.df$Substrate), 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
-
-pairwise.adonis(anosim.df,factors=c(design.df$Date), 
-                sim.method = 'bray', 
-                p.adjust.m ='bonferroni')
-
-#simper(anosim.df,design.df[,2])
+#pairwise.adonis(anosim.df,factors=c(design.df$Date), 
+              #  sim.method = 'bray', 
+              #  p.adjust.m ='bonferroni')
 
 ```
-
-We want to know whether the communities are different  between substrates.  
-```{r Venn Diagrams,echo=FALSE,warning=FALSE}
+## Venn Diagrams
+We want to know whether the communities are different  between substrates.  Venn Diagrams are great visualization tools but are surprisingly poorly supported in R.  The basic logic is as follows.  Create a list of taxa associated with each group.  Compare these lists and count where lists match.  Sounds easy, right?  It is surprisingly difficult.  Proceed with caution.
+```{r Venn Diagrams,warning=FALSE}
 #extract and shape OTU table at Order level
 bacteria.df.venn=subset.data.frame(bacteria.df, taxlevel==4,drop=TRUE)
-
 drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3")
 bacteria.df.venn=bacteria.df.venn[ , !(names(bacteria.df.venn) %in% drops)]
 
-bacteria.df.venn=melt(bacteria.df.venn,id.vars="taxon")
-bacteria.df.venn=dcast(bacteria.df.venn,variable~bacteria.df.venn$taxon)
-#rabund.df$variable=as.numeric(rabund.df$variable)
+
+#Data Prep
+bacteria.df.venn=melt(bacteria.df.venn,id.vars="taxon") #melt is an older version of spread() we use everywhere else
+bacteria.df.venn=dcast(bacteria.df.venn,variable~bacteria.df.venn$taxon) #dcast is an older version of gather()
 bacteria.df.venn=separate(bacteria.df.venn,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
 bacteria.df.venn=separate(bacteria.df.venn,Substrate,into=c("Substrate","Rep"),sep=c(-1))
 bacteria.df.venn$junk=NULL
@@ -561,34 +555,54 @@ bacteria.df.venn=droplevels(bacteria.df.venn[-which(bacteria.df.venn$Substrate==
 bacteria.df.venn$Date=as.factor(bacteria.df.venn$Date)
 bacteria.df.venn$Date=revalue(bacteria.df.venn$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
 
-Hard=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="H",apply(bacteria.df.venn[bacteria.df.venn$Substrate=="H",],MARGIN=2,function(x) any(x>0))])
-Hard=Hard[-(1:3)]
+#Creating lists for each substrate type
+Hard=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="H",
+                               apply(bacteria.df.venn[bacteria.df.venn$Substrate=="H",],
+                                     MARGIN=2,function(x) any(x>0))])
+Hard=Hard[-(1:3)]#dumps the extra stuff we don't need (-)denotes deletion
 
-Soft=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="SO",apply(bacteria.df.venn[bacteria.df.venn$Substrate=="SO",],MARGIN=2,function(x) any(x>0))])
+Soft=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="SO",
+                               apply(bacteria.df.venn[bacteria.df.venn$Substrate=="SO",],
+                                     MARGIN=2,function(x) any(x>0))])
 Soft=Soft[-(1:3)]
 
-Sheet=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="SH",apply(bacteria.df.venn[bacteria.df.venn$Substrate=="SH",],MARGIN=2,function(x) any(x>0))])
+Sheet=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="SH",
+                                apply(bacteria.df.venn[bacteria.df.venn$Substrate=="SH",],
+                                      MARGIN=2,function(x) any(x>0))])
 Sheet=Sheet[-(1:3)]
 
-Foam=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="F",apply(bacteria.df.venn[bacteria.df.venn$Substrate=="F",],MARGIN=2,function(x) any(x>0))])
+Foam=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="F",
+                               apply(bacteria.df.venn[bacteria.df.venn$Substrate=="F",],
+                                     MARGIN=2,function(x) any(x>0))])
 Foam=Foam[-(1:3)]
 
-Tile=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="T",apply(bacteria.df.venn[bacteria.df.venn$Substrate=="T",],MARGIN=2,function(x) any(x>0))])
+Tile=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="T",
+                               apply(bacteria.df.venn[bacteria.df.venn$Substrate=="T",],
+                                     MARGIN=2,function(x) any(x>0))])
 Tile=Tile[-(1:3)]
 
-comparions=list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile)
-#upset(fromList(comparions),order.by="freq",cutoff = 2)
-bac.venn.list=list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile)
-bac.venn=gList(venn.diagram(x=bac.venn.list,filename=NULL,label=TRUE,main="Bacterial Communities",main.fontface = 2,fill=c("yellow","blue","green","red","purple"),
-                            cat.cex=0.8,cat.fontface=2,lty=1,main.pos=c(0.15,1),
-                            cat.just=list(c(0.6,1) , c(0,0) , c(0,0) , c(1,1) ,c(1,0))))
 
-#group.venn(list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile),label=TRUE,file="bac.venn",ext="jpeg",)
+bac.venn.list=list("Hard"=Hard,"Soft"=Soft,"Sheet"=Sheet,"Foam"=Foam,"Tile"=Tile) #list of groups to compare 
+#making a list of lists we created above.  R and other languages use the lists of things often!
+bac.venn=gList(venn.diagram(x=bac.venn.list,
+                            filename=NULL,
+                            label=TRUE,
+                            main="Bacterial Communities",
+                            main.fontface = 2,
+                            fill=c("yellow","blue","green","red","purple"),
+                            cat.cex=0.8,
+                            cat.fontface=2,
+                            lty=1,
+                            main.pos=c(0.15,1),
+                            cat.just=list(c(0.6,1) , c(0,0) , c(0,0) , c(1,1) ,c(1,0))))
+bac.venn.plot=grid.arrange(gTree(children=bac.venn))
+
+#ggsave works with the bac.venn.plot object created above
 
 ```
 
-Now for time!
-```{r Venn Time,echo=FALSE,warning=FALSE}
+Now for time!  The same logic as Substrate applies here, just different groups.
+```{r Venn Time,warning=FALSE}
 #extract and shape OTU table at Order level
 bacteria.df.venn=subset.data.frame(bacteria.df, taxlevel==4,drop=TRUE)
 
@@ -614,28 +628,26 @@ Day_21=colnames(bacteria.df.venn[bacteria.df.venn$Date=="21",apply(bacteria.df.v
 
 Day_31=colnames(bacteria.df.venn[bacteria.df.venn$Date=="31",apply(bacteria.df.venn[bacteria.df.venn$Date=="31",],MARGIN=2,function(x) any(x>0))])
 
-venn(list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31))
+day_venn=list("Day 3"=Day_3,"Day 10"=Day_10,"Day 21"=Day_21,"Day 31"=Day_31)
+
+bac.venn.day=gList(venn.diagram(x=day_venn,
+                            filename=NULL,
+                            label=TRUE,
+                            main="Bacterial Communities",
+                            main.fontface = 2,
+                            fill=c("yellow","blue","green","red"),
+                            cat.cex=0.8,
+                            cat.fontface=2,
+                            lty=1,
+                            main.pos=c(0.15,1),
+                            cat.just=list(c(0.6,1) , c(0,0) , c(0,0) , c(1,1) )))
+bac.venn.day.plot=grid.arrange(gTree(children=bac.venn.day)) #don't know how to swithc which date is which blob
 ```
 
+## Exporting your Working Environment
+BY now your working environment (R's short term memory) is pretty full.  This takes time and is not always necessary to do.  One option is to save a copy of it in an .Rdata file.  These files can be opened up and presto! your working environment is back there!  I used these to create a markdown doc of all the figures included in a paper.  It saves time by not requiring me to have all my other R files open and running simultaneously.  These are also handy for archival purposes.
 
 ```{r}
-disp.Sample=betadisper(bac.ord.dist,bac.ORD$Substrate)
-boxplot(disp.Sample)
-plot(disp.Sample)
-disp.Date=betadisper(bac.ord.dist,bac.ORD$Date_Sampled)
-boxplot(disp.Date)
-plot(disp.Date)
-perm.date=permutest(disp.Date, pairwise=TRUE,permutations=10000) 
-TukeyHSD(disp.Sample) #compaitble with tukeyhsd for pairwise comparions!
-perm.sample=permutest(disp.Sample, pairwise=TRUE,permutations=10000)
-TukeyHSD(disp.Date)
-disp.Sample
-disp.Date
+saveRDS(bacteria.df,"bacteria.Rdata")  # This saves the working envrionment in a single file.  you can access this file so that you don't need to re-run this document.  For example I did this to create a new markdown doc that cotnained all the figures for this porject but didn't replciate all the analyses.
 ```
 
-
-```{r}
-saveRDS(bacteria.df,"bacteria.Rdata")
-```
-
-Okay, so that's all the analyses for now.
