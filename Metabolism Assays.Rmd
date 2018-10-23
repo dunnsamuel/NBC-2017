@@ -60,6 +60,7 @@ eea.df=read.csv("Compiled_EEA.csv")
 par.df=read.csv("par.csv")
 usgs.df=read.csv("usgs_niles.csv")
 water=read.csv("waterchem.wide.csv")
+pd=position_dodge(width=0.8)
 ```
 
 
@@ -97,14 +98,16 @@ metabolism.data$GPP<-ifelse(metabolism.data$GPP<0,0.000001,metabolism.data$GPP)
 metabolism.data$Resp<-ifelse(metabolism.data$Resp>0,0.000001,metabolism.data$Resp)
 #pc.df=cbind(metabolism.data[1],metabolism.data[3],metabolism.data[5:7],eea.df[8],eea.df[10],eea.df[12])
 
+##chlorophyll a calculation
 cv.resp.df=cbind(cv.data,metabolism.data[,5:7])
 chl.data$chla_cm=286*(((abs(chl.data$X665B)-abs(chl.data$X750B))-(abs(chl.data$X665A)-abs(chl.data$X750A))*5)/chl.data$area)
 chl.data$chl_abs=abs(chl.data$chla_cm)
 
+
 pc.df=cbind(metabolism.data[1],metabolism.data[3],metabolism.data[5:7],eea.df[8],
             eea.df[10],eea.df[12],chl.data[13],cv.data[4],metabolism.data[8])
 
-
+##Aggregate Data and Summarize
 water.Date=list(unique(water$Date))
 no3.sum=aggregate(no3~Date,water,mean)
 nh4.sum=aggregate(nh4~Date,water,mean)
@@ -275,20 +278,23 @@ DT::datatable(tab.1,
           filter='top',
           extensions='Buttons',
           options = list(dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+write.xlsx(tab.1,file="table1.xlsx")
 
 
 ```
 
-```{r CV-Figure 1}
+```{r CV figure color}
 cv.data=na.omit(cv.data)
 theme_set(theme_gray(base_size = 18))
 cv.sum=summarySE(cv.data,measurevar="OD_cm",groupvars=c("time","Substrate"))
-substrate.plot.cv=ggplot(cv.sum,aes(time,group=Substrate,na.rm=T,y=OD_cm))+
-  geom_point(data=cv.sum,aes(y=OD_cm,shape=Substrate),stat="identity",color="black",size=3)+
-  geom_line(aes(y=OD_cm,linetype=Substrate),width=.5)+
+
+
+substrate.plot.cv=ggplot(cv.sum,aes(time,group=Substrate,shape=Substrate,fill=Substrate,na.rm=T,y=OD_cm))+
+  geom_point(position=pd,color="black",size=4)+
+  geom_line(aes(y=OD_cm,linetype=Substrate),width=.5,position=pd)+
   theme_classic()+
-  geom_errorbar(aes(ymin=OD_cm-se,ymax=OD_cm+se,fill=Substrate),
-                stat="identity",width=.15,na.rm=T)+
+  geom_errorbar(aes(ymin=OD_cm-se,ymax=OD_cm+se,),
+                stat="identity",width=.15,na.rm=T,position=pd)+
   ylab(bquote('Optical Density  ('~cm^-2~')'))+
   theme(panel.background=element_blank(),
         legend.title=element_blank(),
@@ -297,173 +303,357 @@ substrate.plot.cv=ggplot(cv.sum,aes(time,group=Substrate,na.rm=T,y=OD_cm))+
         axis.title=element_text(size=16),
         legend.text=element_text(size=14))+
   xlab("Days of Incubation")+
-  scale_x_continuous(breaks=seq(0,30,5))
+  scale_x_continuous(breaks=seq(0,30,5))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
+
 substrate.plot.cv
+  ggsave("cv.color.jpeg",device="jpeg",width=8.5,height=8.5, units="in")
 ```
 
 
-```{r Figure 2 Metabolism}
 
+```{r CV-Figure 1}
+cv.data=na.omit(cv.data)
+theme_set(theme_gray(base_size = 18))
+cv.sum=summarySE(cv.data,measurevar="OD_cm",groupvars=c("time","Substrate"))
+
+
+substrate.plot.cv=ggplot(cv.sum,aes(time,group=Substrate,shape=Substrate,na.rm=T,y=OD_cm))+
+  geom_point(position=pd,color="black",size=4,fill="black")+
+  geom_line(aes(y=OD_cm,linetype=Substrate),width=.5,position=pd)+
+  theme_classic()+
+  geom_errorbar(aes(ymin=OD_cm-se,ymax=OD_cm+se,),
+                stat="identity",width=.15,na.rm=T,position=pd)+
+  ylab(bquote('Optical Density  ('~cm^-2~')'))+
+  theme(panel.background=element_blank(),
+        legend.title=element_blank(),
+        legend.position=c(0.15,0.85),
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  xlab("Days of Incubation")+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
+
+substrate.plot.cv
+  ggsave("cv.bw.jpeg",device="jpeg",width=8.5,height=8.5, units="in")
+```
+
+
+```{r Figure 2 Metabolism BW}
+pd=position_dodge(width=0.8)
 
 bar.df=melt(metabolism.data,id.vars=c("time","Sample"),measure.vars = c("GPP","Resp","NEP"),na.rm=TRUE)
 
-bar.sum=summarySE(bar.df,measurevar="value",groupvars = c("time","variable","Sample"),na.rm=TRUE)
-resp.gpp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample))+
-  geom_point(data=subset(bar.sum,variable=="GPP"), aes(y=value,shape=Sample),stat="identity",size=3)+
-  geom_point(data=subset(bar.sum,variable=="Resp"),aes(y=value,shape=Sample),stat="identity",color="black",size=3)+
-  geom_line(data=subset(bar.sum,variable=="GPP"), aes(y=value, linetype=Sample),width=.5)+
-  geom_line(data=subset(bar.sum,variable=="Resp"), aes(y=value, linetype=Sample),width=.5)+
-  geom_hline(yintercept=0)+theme_classic()+
-  geom_errorbar(data=subset(bar.sum,variable=="GPP"),aes(ymin=value-se,ymax=value+se,fill=Sample),stat="identity",width=.15,na.rm=T)+
-  geom_errorbar(data=subset(bar.sum,variable=="Resp"),aes(ymin=value-se,ymax=value+se,fill=Sample),stat="identity",width=.15,na.rm=T)+
-  theme(axis.text.x=element_text(angle=45,hjust=1),
-        legend.position = c(0.1,0.85),
-        legend.title=element_blank())+
-  scale_y_continuous(limits=c(-1.15,1.15))+scale_x_continuous(breaks=seq(0,30,5))+
-  ylab(bquote('mg O'[2]~''~cm^-2~''~hr^-1))+xlab(NULL)+annotate("text",x=30,y=1, label="GPP",hjust=0)+annotate("text",x=30,y=-1,label="Respiration",hjust=0)
-
-
-nep.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=variable))+
-  geom_point(data=subset(bar.sum,variable=="NEP"),
-             aes(y=value, shape=Sample),stat="identity",
-             color="black",size=3)+
-  geom_line(data=subset(bar.sum,variable=="NEP"), 
-            aes(y=value, linetype=Sample),width=.5)+
-  geom_hline(yintercept=0)+theme_classic()+
-  geom_errorbar(data=subset(bar.sum,variable=="NEP"),
-                aes(ymin=value-se,ymax=value+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
-  scale_y_continuous(limits=c(-1.15,1.15))+
-  scale_x_continuous(breaks=seq(0,30,5))+
-  ylab(bquote('mg O'[2]~''~cm^-2~''~hr^-1))+
-  xlab("Days of Incubation")+
-  annotate("text",x=30,y=1, label="NEP",hjust=0)+
-  theme(legend.position = c(0.15,0.85),legend.title=element_blank())
-
-
-
-#stacked.bar=ggarrange(resp.gpp.bar.plot+theme(axis.line.x=element_blank(),axis.text.x=element_blank(),
-                                 # axis.ticks.x=element_blank()),nep.bar.plot+theme(legend.position = "none"),nrow=2,common.legend = F)
-#stacked.bar
-#("met.jpeg",device="jpeg", width=8.5,height=6.2, units="in")
-#
-#breakup GPP RESP
 
 bar.sum=summarySE(bar.df,measurevar="value",groupvars = c("time","variable","Sample"),na.rm=TRUE)
 na.omit(bar.sum)
-resp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample))+
-  geom_point(data=subset(bar.sum,variable=="Resp"),
-             aes(y=value,shape=Sample),stat="identity",
-             color="black",
-             size=3)+
-  geom_line(data=subset(bar.sum,variable=="Resp"), 
-            aes(y=value, linetype=Sample),
-            width=.5)+
-  theme_classic()+
-  geom_errorbar(data=subset(bar.sum,variable=="Resp"),
-                aes(ymin=value-se,ymax=value+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
-  scale_x_continuous(breaks=seq(0,30,5),position="top")+
-  ylab(bquote(atop('Respiration','mg O'[2]~''~cm^-2~''~hr^-1)))+
-  xlab(NULL)+theme(legend.position = c(0.15,0.85),
-                   legend.title=element_blank(),
-                   axis.text=element_text(size=16),
-                   axis.title=element_text(size=16),
-                   legend.text=element_text(size=14))
-
+##component plots
 gpp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample))+
   geom_point(data=subset(bar.sum,variable=="GPP"), 
-             aes(y=value,shape=Sample),stat="identity",size=3)+
+             aes(y=value,shape=Sample),stat="identity",fill="black",size=3,position=pd)+
   geom_line(data=subset(bar.sum,variable=="GPP"), 
-            aes(y=value, linetype=Sample),width=.5)+
+            aes(y=value, linetype=Sample),width=.5,position=pd)+
   theme_classic()+
   geom_errorbar(data=subset(bar.sum,variable=="GPP"),
                 aes(ymin=value-se,ymax=value+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
+                stat="identity",width=.15,na.rm=T,position=pd)+
   scale_x_continuous(breaks=seq(0,30,5))+
   ylab(bquote(atop('GPP', 'mg O'[2]~''~cm^-2~''~hr^-1)))+
-  xlab(NULL)+theme(legend.position = c(0.15,0.85),
+  xlab(NULL)+theme(legend.position = c(0.13,0.78),
                    legend.title=element_blank(),
                    axis.text=element_text(size=16),
                    axis.title=element_text(size=16),
-                   legend.text=element_text(size=14))
+                   legend.text=element_text(size=11),
+                   legend.key = element_rect(color="transparent",fill="transparent"))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
+resp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample))+
+  geom_point(data=subset(bar.sum,variable=="Resp"),
+             aes(y=value,shape=Sample),stat="identity",
+             fill="black",
+             size=3,
+             position=pd)+
+  geom_line(data=subset(bar.sum,variable=="Resp"), 
+            aes(y=value, linetype=Sample),
+            width=.5,position=pd)+
+  theme_classic()+
+  geom_errorbar(data=subset(bar.sum,variable=="Resp"),
+                aes(ymin=value-se,ymax=value+se,fill=Sample),
+                stat="identity",width=.15,na.rm=T,position=pd)+
+  scale_x_continuous(breaks=seq(0,30,5),position="top")+
+  ylab(bquote(atop('Respiration','mg O'[2]~''~cm^-2~''~hr^-1)))+
+  xlab(NULL)+
+  theme( legend.title=element_blank(),
+                   axis.text=element_text(size=16),
+                   axis.title=element_text(size=16),
+                   legend.text=element_text(size=14))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
 
 nep.bar.plot=ggplot(bar.sum,aes(time,shape=Sample,group=Sample))+
   geom_point(data=subset(bar.sum,variable=="NEP"),na.rm=T,
-             aes(y=value, shape=Sample),stat="identity",color="black",size=3)+
+             aes(y=value, shape=Sample),stat="identity",fill="black",size=3,position=pd)+
   geom_line(data=subset(bar.sum,variable=="NEP"),na.rm=T, 
-            aes(y=value, linetype=Sample),width=.5)+
+            aes(y=value, linetype=Sample),width=.5,position=pd)+
   geom_hline(yintercept=0)+theme_classic()+
   geom_errorbar(data=subset(bar.sum,variable=="NEP"),
                 aes(ymin=value-se,ymax=value+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
+                stat="identity",width=.15,na.rm=T,position=pd)+
   scale_x_continuous(breaks=seq(0,30,5))+
   ylab(bquote(atop('NEP','mg O'[2]~''~cm^-2~''~hr^-1)))+
   xlab("Days of Incubation")+
   scale_y_continuous(breaks=seq(-1,1,0.5))+
-  theme(legend.position = c(0.15,0.85),
+  theme(legend.position = NULL,
         legend.title=element_blank(),
         axis.text=element_text(size=16),
         axis.title=element_text(size=16),
-        legend.text=element_text(size=14))
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
 
 stacked.bar=ggarrange(gpp.bar.plot+theme(axis.text.x=element_blank()),
-                      resp.bar.plot+theme(axis.text.x=element_blank()),
-                      nep.bar.plot,nrow=3,common.legend = TRUE,legend="bottom",align="v",heights=c(1,1,1.25))
+                      resp.bar.plot+theme(axis.text.x=element_blank(),legend.position="none"),
+                      nep.bar.plot+theme(legend.position="none"),
+                      nrow=3,common.legend = FALSE,align="v",heights=c(1,1,1.25))
 stacked.bar
+ggsave("metabolism.bw.jpeg",width=8.5,height=8.5, units="in")
 ```
 
+```{r Metabolism color}
+pd=position_dodge(width=0.8)
+
+bar.df=melt(metabolism.data,id.vars=c("time","Sample"),measure.vars = c("GPP","Resp","NEP"),na.rm=TRUE)
+
+
+bar.sum=summarySE(bar.df,measurevar="value",groupvars = c("time","variable","Sample"),na.rm=TRUE)
+na.omit(bar.sum)
+##component plots
+gpp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample,fill=Sample))+
+  geom_point(data=subset(bar.sum,variable=="GPP"), 
+             aes(y=value,shape=Sample),stat="identity",size=3,position=pd)+
+  geom_line(data=subset(bar.sum,variable=="GPP"), 
+            aes(y=value, linetype=Sample),width=.5,position=pd)+
+  theme_classic()+
+  geom_errorbar(data=subset(bar.sum,variable=="GPP"),
+                aes(ymin=value-se,ymax=value+se,fill=Sample),
+                stat="identity",width=.15,na.rm=T,position=pd)+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  ylab(bquote(atop('GPP', 'mg O'[2]~''~cm^-2~''~hr^-1)))+
+  xlab(NULL)+theme(legend.position = c(0.13,0.78),
+                   legend.title=element_blank(),
+                   axis.text=element_text(size=16),
+                   axis.title=element_text(size=16),
+                   legend.text=element_text(size=11),
+                   legend.key = element_rect(color="transparent",fill="transparent"))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
+resp.bar.plot=ggplot(bar.sum,aes(time,group=Sample,shape=Sample,fill=Sample))+
+  geom_point(data=subset(bar.sum,variable=="Resp"),
+             aes(y=value,shape=Sample),stat="identity",
+             size=3,
+             position=pd)+
+  geom_line(data=subset(bar.sum,variable=="Resp"), 
+            aes(y=value, linetype=Sample),
+            width=.5,position=pd)+
+  theme_classic()+
+  geom_errorbar(data=subset(bar.sum,variable=="Resp"),
+                aes(ymin=value-se,ymax=value+se,fill=Sample),
+                stat="identity",width=.15,na.rm=T,position=pd)+
+  scale_x_continuous(breaks=seq(0,30,5),position="top")+
+  ylab(bquote(atop('Respiration','mg O'[2]~''~cm^-2~''~hr^-1)))+
+  xlab(NULL)+
+  theme( legend.title=element_blank(),
+                   axis.text=element_text(size=16),
+                   axis.title=element_text(size=16),
+                   legend.text=element_text(size=14))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
+
+nep.bar.plot=ggplot(bar.sum,aes(time,shape=Sample,group=Sample,fill=Sample))+
+  geom_point(data=subset(bar.sum,variable=="NEP"),na.rm=T,
+             aes(y=value, shape=Sample),stat="identity",size=3,position=pd)+
+  geom_line(data=subset(bar.sum,variable=="NEP"),na.rm=T, 
+            aes(y=value, linetype=Sample),width=.5,position=pd)+
+  geom_hline(yintercept=0)+theme_classic()+
+  geom_errorbar(data=subset(bar.sum,variable=="NEP"),
+                aes(ymin=value-se,ymax=value+se,fill=Sample),
+                stat="identity",width=.15,na.rm=T,position=pd)+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  ylab(bquote(atop('NEP','mg O'[2]~''~cm^-2~''~hr^-1)))+
+  xlab("Days of Incubation")+
+  scale_y_continuous(breaks=seq(-1,1,0.5))+
+  theme(legend.position = NULL,
+        legend.title=element_blank(),
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
+stacked.bar=ggarrange(gpp.bar.plot+theme(axis.text.x=element_blank()),
+                      resp.bar.plot+theme(axis.text.x=element_blank(),legend.position="none"),
+                      nep.bar.plot+theme(legend.position="none"),
+                      nrow=3,common.legend = FALSE,align="v",heights=c(1,1,1.25))
+stacked.bar
+ggsave("metabolism.color.jpeg",width=8.5,height=8.5, units="in")
+```
+
+
+
 ```{r Enzymes Figure 3}
+## Day 21 plates were dropped/otherise
+eea.df<-eea.df %>% 
+  filter(time!=21) #filter out bad day
+
+pd=position_dodge(width=0.8)
+
 bg.sum=summarySE(eea.df,measurevar="BGT2",groupvars=c("time","Sample"))
 nag.sum=summarySE(eea.df,measurevar="NAGT2",groupvars=c("time","Sample"))
 p.sum=summarySE(eea.df,measurevar="PT2",groupvars=c("time","Sample"))
 
-exp.plot.bg=ggplot(bg.sum,aes(time,group=Sample,na.rm=T))+
-  geom_point(data=bg.sum,aes(y=BGT2, shape=Sample),stat="identity",color="black",size=3)+
-  geom_line(aes(y=BGT2, linetype=Sample),width=.5)+
-  geom_errorbar(aes(ymin=BGT2-se,ymax=BGT2+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
+exp.plot.bg=ggplot(bg.sum,
+                   aes(x=time,y=BGT2,group=Sample,shape=Sample,fill=Sample))+
+  geom_point(position=pd,size=3)+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=BGT2-se,ymax=BGT2+se),width=0.3,position=pd)+
+  theme_classic()+
   ylab(bquote(atop(beta~'glucosidase', 
                    '( '*mu~'g'~cm^-2~h^-1~')')))+
-  theme(legend.position=c(0.05,0.65),legend.title=element_blank())+
+  theme(legend.position=c(0.1,0.65),
+        legend.title=element_blank())+
   scale_x_continuous(breaks=seq(0,30,5))+
-  xlab("Days of Incubation")+annotate("text",x=0,y=200, label="paste(bold(a))",parse=T)
+  xlab("Days of Incubation")+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
 
 
 #exp.plot.bg
 
 
-exp.plot.nag=ggplot(nag.sum,aes(time,group=Sample,na.rm=T))+
-  geom_point(data=nag.sum,aes(y=NAGT2, shape=Sample),stat="identity",color="black",size=3)+
-  geom_line(aes(y=NAGT2, linetype=Sample),width=.5)+
-  geom_errorbar(aes(ymin=NAGT2-se,ymax=NAGT2+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
-  ylab(bquote(atop('N-acetyl- '*beta~'-D glucosaminidase', '( '*mu~'g'~cm^-2~h^-1~')')))+
-  theme(legend.position=c(0.05,0.85),legend.title=element_blank())+
+exp.plot.nag=ggplot(nag.sum,
+                    aes(x=time,y=NAGT2,group=Sample,shape=Sample,fill=Sample))+
+  geom_point(position=pd,size=3)+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=NAGT2-se,ymax=NAGT2+se),width=0.3,position=pd)+
+  theme_classic()+
+  ylab(bquote(atop('N-acetyl- '*beta~'-D glucosaminidase',
+                   '( '*mu~'g'~cm^-2~h^-1~')')))+
+  theme(legend.position=c(0.05,0.85),
+        legend.title=element_blank())+
   scale_x_continuous(breaks=seq(0,30,5))+
-  xlab("Days of Incubation")+annotate("text",x=0,y=200, label="paste(bold(b))",parse=T,hjust=0,size=4)
+  xlab("Days of Incubation")+
+  theme_classic()+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
 #exp.plot.nag
 
 
-exp.plot.p=ggplot(p.sum,aes(time,group=Sample,na.rm=T))+
-  geom_point(data=p.sum,aes(y=PT2, shape=Sample),stat="identity",color="black",size=3)+
-  geom_line(aes(y=PT2, linetype=Sample),width=.5)+
-  geom_errorbar(aes(ymin=PT2-se,ymax=PT2+se,fill=Sample),
-                stat="identity",width=.15,na.rm=T)+
-  ylab(bquote(atop('Phosphatase', '( '*mu~'g'~cm^-2~h^-1~')')))+xlab("Date")+scale_y_continuous(limits=c(0,200))+
+exp.plot.p=ggplot(p.sum,
+                  aes(x=time,y=PT2,group=Sample,shape=Sample,fill=Sample))+
+  geom_point(position=pd,size=3)+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=PT2-se,ymax=PT2+se),width=0.3,position=pd)+
+  ylab(bquote(atop('Phosphatase', '( '*mu~'g'~cm^-2~h^-1~')')))+xlab("Date")+
+  scale_y_continuous(limits=c(0,200))+
   scale_x_continuous(breaks=seq(0,30,5))+
-  theme(legend.position=c(0.05,0.85),legend.title=element_blank())+
+  theme(legend.position=c(0.05,0.85),
+        legend.title=element_blank())+
   scale_x_continuous(breaks=seq(0,30,5))+
-  xlab("Days of Incubation")+annotate("text",x=0,y=200, label="paste(bold(c))",parse=T,hjust=0,size=4)
+  xlab("Days of Incubation")+
+  theme_classic()+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
   
 #exp.plot.p
 
 
-enz.plots=ggarrange(exp.plot.bg+theme(axis.text.x=element_blank(),axis.title.x = element_blank()),
-          exp.plot.nag+theme(legend.position = "none",axis.text.x=element_blank(),axis.title.x = element_blank()),
-          exp.plot.p+theme(legend.position = "none"),nrow=3,align="v",common.legend = FALSE,heights=c(1,1,1.25) )
+enz.plots=ggarrange(exp.plot.bg+
+                      theme(axis.text.x=element_blank(),
+                            axis.title.x = element_blank()),
+          exp.plot.nag+
+            theme(legend.position = "none",
+                  axis.text.x=element_blank(),
+                  axis.title.x = element_blank()),
+          exp.plot.p+
+            theme(legend.position = "none"),
+          nrow=3,align="v",common.legend = FALSE,heights=c(1,1,1.25))
 
 enz.plots
+ggsave("enz_plots_fig3_color.jpeg",width=8.5,height=8.5, units="in")
+```
+```{r Enz fig BW}
+## Day 21 plates were dropped/otherise
+eea.df<-eea.df %>% 
+  filter(time!=21) #filter out bad day
+
+pd=position_dodge(width=0.8)
+
+bg.sum=summarySE(eea.df,measurevar="BGT2",groupvars=c("time","Sample"))
+nag.sum=summarySE(eea.df,measurevar="NAGT2",groupvars=c("time","Sample"))
+p.sum=summarySE(eea.df,measurevar="PT2",groupvars=c("time","Sample"))
+
+exp.plot.bg=ggplot(bg.sum,
+                   aes(x=time,y=BGT2,group=Sample,shape=Sample))+
+  geom_point(position=pd,size=3,fill="black")+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=BGT2-se,ymax=BGT2+se),width=0.3,position=pd)+
+  theme_classic()+
+  ylab(bquote(atop(beta~'glucosidase', 
+                   '( '*mu~'g'~cm^-2~h^-1~')')))+
+  theme(legend.position=c(0.1,0.65),
+        legend.title=element_blank())+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  xlab("Days of Incubation")+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+
+
+exp.plot.bg
+
+
+exp.plot.nag=ggplot(nag.sum,
+                    aes(x=time,y=NAGT2,group=Sample,shape=Sample))+
+  geom_point(position=pd,size=3,fill="black")+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=NAGT2-se,ymax=NAGT2+se),width=0.3,position=pd)+
+  theme_classic()+
+  ylab(bquote(atop('N-acetyl- '*beta~'-D glucosaminidase',
+                   '( '*mu~'g'~cm^-2~h^-1~')')))+
+  theme(legend.position=c(0.05,0.85),
+        legend.title=element_blank())+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  xlab("Days of Incubation")+
+  theme_classic()+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+#exp.plot.nag
+
+
+exp.plot.p=ggplot(p.sum,
+                  aes(x=time,y=PT2,group=Sample,shape=Sample))+
+  geom_point(position=pd,size=3,fill="black")+
+  geom_line(aes(linetype=Sample),position=pd)+
+  geom_errorbar(aes(ymin=PT2-se,ymax=PT2+se),width=0.3,position=pd)+
+  ylab(bquote(atop('Phosphatase', '( '*mu~'g'~cm^-2~h^-1~')')))+xlab("Date")+
+  scale_y_continuous(limits=c(0,200))+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  theme(legend.position=c(0.05,0.85),
+        legend.title=element_blank())+
+  scale_x_continuous(breaks=seq(0,30,5))+
+  xlab("Days of Incubation")+
+  theme_classic()+
+  scale_shape_manual(name="Sample",values=c(21,22,23,24,25))
+  
+#exp.plot.p
+
+
+enz.plots=ggarrange(exp.plot.bg+
+                      theme(axis.text.x=element_blank(),
+                            axis.title.x = element_blank()),
+          exp.plot.nag+
+            theme(legend.position = "none",
+                  axis.text.x=element_blank(),
+                  axis.title.x = element_blank()),
+          exp.plot.p+
+            theme(legend.position = "none"),
+          nrow=3,align="v",common.legend = FALSE,heights=c(1,1,1.25))
+
+enz.plots
+ggsave("enz_plots_fig3_black.jpeg",width=8.5,height=8.5, units="in")
 ```
 
 
