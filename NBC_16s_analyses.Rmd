@@ -70,8 +70,8 @@ ipak(packages)
 #PAirwise adonis is an unofiical package that does pairwise PERMANOVA on community data.  it is marginally useful.  To active it, simply remove the # and re run the code.
 #install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
 #library(pairwiseAdonis)
-theme_set(theme_gray(base_size = 18))
-pd=position_dodge(width=0.4)
+
+pd=position_dodge(width=0.8)
 
 bacteria.df=bacteria.df[bacteria.df$taxon !="Chloroplast_ge",] #We forgot to remove chloroplasts before in mothur...but we can do it now too!
 
@@ -111,6 +111,7 @@ shannon.nbc$junk=NULL
 shannon.df=droplevels(shannon.nbc[-which(shannon.nbc$Substrate=='CR'),])
 shannon.df$Date=as.factor(shannon.df$Date)
 shannon.df$Date=revalue(shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+shannon.df$Substrate=factor(shannon.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 
 #Now, we summarizse by Date and Susbtrate  and get means and se across our reps.  
@@ -174,6 +175,7 @@ otu.df$junk=NULL
 otu.df=droplevels(otu.df[-which(otu.df$Substrate=='CR'),])
 otu.df$Date=as.factor(otu.df$Date)
 otu.df$Date=revalue(otu.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+otu.df$Substrate=factor(otu.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 
 
@@ -184,6 +186,7 @@ otu.df.summary=summarySE(otu.df,measurevar="OTU",groupvars=c("Date","Substrate")
 #This is another, simpler form of summarizing info for plotting purposes.  I chose to leave this here as an example of how making a summary table works if you don't have to do it multiple times.
 
 pd=position_dodge(width=0.4)
+
 otu.plot=ggplot(otu.df.summary, 
                 aes(x=Date,y=OTU,group=Substrate,shape=Substrate,fill=Substrate))+
   geom_point(position=pd,size=4)+
@@ -235,6 +238,7 @@ bac.rab$Junk=NULL
 rabund.df=droplevels(bac.rab[-which(bac.rab$Substrate=='CR'),])
 rabund.df$Date=as.factor(rabund.df$Date)
 rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+rabund.df$Substrate=factor(rabund.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 
 rabund.sum.df<-rabund.df %>% 
@@ -289,6 +293,7 @@ bac.rab$Junk=NULL
 rabund.df=droplevels(bac.rab[-which(bac.rab$Substrate=='CR'),])
 rabund.df$Date=as.factor(rabund.df$Date)
 rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+rabund.df$Substrate=factor(rabund.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 rabund.sum.df<-rabund.df %>% 
   group_by(Date,Substrate,taxon) %>% 
@@ -299,16 +304,17 @@ rabund.sum.df<-rabund.df %>%
 
 require(viridis) #viridis is a package of alternative color scales to allow for high contrast observations....i.e. whent here are very subtle changes.
 ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+
-  geom_tile()+
+  geom_tile(width=1)+
   facet_wrap(~Substrate,nrow=1)+#facet wrap splits our graph into multiuple chunks where each has a unique valeu for some factor
-  scale_fill_viridis()+ 
+  scale_fill_viridis_c(name="Root Mean Relative\nAbundance")+  #\n creates a line break in text
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10),
-        legend.text=element_text(size=10))+
-  ylab("Class")+
+        strip.text=element_text(size=10),
+        legend.title = element_text(size=12))+
+  ylab("Phylum")+
   xlab("Day of Incubation")
   
-#ggsave("hm.jpeg", device="jpeg", width=7, height=10,units="in")
+ggsave("bac.hm.jpeg", device="jpeg", width=8, height=10,units="in")
 #you can also set dimensions when your print your figures
 ```
 
@@ -366,7 +372,7 @@ env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I spe
 
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
 
-env.df.fac=env.df[,1:2] #We want to copy the first two columns of site  data here.  We can't have ANY site data present when we do our ordination.  We will reattache this site data tot he ordination table afterwards so we can make inferences and good figures.
+
 
 bacteria.df.3=subset.data.frame(bacteria.df, taxlevel==3,drop=TRUE)
 bacteria.df.3$taxlevel=NULL
@@ -380,13 +386,16 @@ bac.env<-bacteria.df.3 %>%
 
 bac.env$Junk=NULL
 bac.env=droplevels(bac.env[-which(bac.env$Substrate=='CR'),])
-bac.env$Date=as.factor(bac.env$Date)
-bac.env$Date=revalue(bac.env$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+env.df$Date_Sampled=as.factor(env.df$Date_Sampled)
+env.df$Date_Sampled=revalue(env.df$Date_Sampled,c("8/18/2017"="3","8/29/2017"="10","9/5/2017"="21","9/15/2017"="31"))
+env.df$Substrate=factor(env.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
+env.df.fac=env.df[,1:2] #We want to copy the first two columns of site  data here.  We can't have ANY site data present when we do our ordination.  We will reattache this site data tot he ordination table afterwards so we can make inferences and good figures.
 
 bac.df.sps<-bac.env %>% 
-  spread(key=taxon, value=obs) %>% #spread take a tall data table and makes it wide.  each "key" value becomes a column populated by the "value"
-  select(-Date,-Substrate,-Rep)
+  spread(key=taxon, value=obs) %>% 
+  dplyr::select(-Date,-Substrate,-Rep)#spread take a tall data table and makes it wide.  each "key" value becomes a column populated by the "value"
+  
 
 
 bac.ord.dist=vegdist(bac.df.sps) #vegdist in the vegab package does distances.  Bray-Curtis is default but can do many many more.
@@ -403,24 +412,11 @@ bac.spp.scrs=cbind(bac.spp.scrs, Assay=rownames(bac.spp.scrs),bac.fit$vectors$pv
 bac.spp.scrs=setnames(bac.spp.scrs, old=("bac.fit$vectors$pvals"), new=c("pvals")) #Changing the name for clarity's sake
 bac.spp.scrs=bac.spp.scrs[ which (bac.spp.scrs$pvals<0.05),] #Here we select only the  vectors whose p.vals are less than 0.05.
 
-## Ellipses.  The following tow functions are custom creations to generate elipses for our NMDS plot
- veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100) 
-  {
-    theta <- (0:npoints) * 2 * pi/npoints
-    Circle <- cbind(cos(theta), sin(theta))
-    t(center + scale * t(Circle %*% chol(cov)))
- }
- 
-bac.df_ell <- data.frame()
-  for(g in levels(bac.ORD$Substrate)){ # you will have to update some of these fields ....look for bac.ORD, Substrate, etc.
-    bac.df_ell <- rbind(bac.df_ell, cbind(as.data.frame(with(bac.ORD[bac.ORD$Substrate==g,],
-                    veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
-                    ,group=g))
-  }
+
 
 #Plotting oru NDMS
 bac.nmds=ggplot(bac.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Substrate,fill=Date))+
   coord_fixed(ratio=1)+
   geom_segment(data=bac.spp.scrs, #lines for vectors
                aes(x=0, xend=bac.spp.scrs$NMDS1/4, y=0,yend=bac.spp.scrs$NMDS2/4),
@@ -429,15 +425,13 @@ bac.nmds=ggplot(bac.ORD)+
   geom_text(data = bac.spp.scrs, #labels for vectors
             aes(x = NMDS1/4.5, y = NMDS2/4.5, label = Assay),
             size = 3) +
-  geom_path(data=bac.df_ell, #ellipses
-              aes(x=MDS1, y=MDS2,colour=group), 
-              size=1, linetype=2)+
   ggtitle("Bacterial Communities")+
   theme_classic()+
-  labs(shape="Date Sampled", 
+  labs(shape="Day of Incubation", 
        color="Substrate")+
   xlim(-0.3,0.3)+
-  ylim(-0.3,0.3)
+  ylim(-0.3,0.3)+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
 bac.nmds
 
 ## The scores and stress values are important metrics of NMDS quality
@@ -493,6 +487,7 @@ bac.perm$Junk=NULL
 bac.perm=droplevels(bac.perm[-which(bac.perm$Substrate=='CR'),])
 bac.perm$Date=as.factor(bac.perm$Date)
 bac.perm$Date=revalue(bac.perm$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+bac.perm$Substrate=factor(bac.perm$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 anosim.bac.df<-bac.perm %>% #originally I was trying to use ANOSIM, but PERMANOVA ended up being mroe appropriate...I was too lazy to change the names.
   spread(key="taxon",value="obs")
@@ -520,7 +515,7 @@ summary(bac.ano)
 bac.perm=print(adonis(anosim.bac.df~Substrate*Date,data=design.df)) #the adonis() function is what calculates the PERMANOVA.  The interaction term is automatic and does not need to explicitly coded
 bac.perm.tab=as.data.frame(bac.perm$aov.tab)
 bac.perm.tab=bac.perm.tab[1:3,]
-bac.perm.tab<-rownames_to_column(bac.perm.tab,var="Term") #createing a term column from rownames
+bac.perm.tab<-rownames_to_column(bac.perm.tab,var="Parameter") #createing a term column from rownames
 bac.perm.tab # prints the table
 
 write.xlsx(bac.perm.tab,"permanova.table.xlsx")
@@ -554,6 +549,7 @@ bacteria.df.venn$junk=NULL
 bacteria.df.venn=droplevels(bacteria.df.venn[-which(bacteria.df.venn$Substrate=='CR'),])
 bacteria.df.venn$Date=as.factor(bacteria.df.venn$Date)
 bacteria.df.venn$Date=revalue(bacteria.df.venn$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+
 
 #Creating lists for each substrate type
 Hard=colnames(bacteria.df.venn[bacteria.df.venn$Substrate=="H",
