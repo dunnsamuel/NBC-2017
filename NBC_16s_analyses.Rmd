@@ -64,7 +64,8 @@ packages <- c("ggplot2",
               "broom",
               "data.table",
               "devtools",
-              "xlsx")
+              "xlsx",
+              "ggrepel")
 ipak(packages)
 
 #PAirwise adonis is an unofiical package that does pairwise PERMANOVA on community data.  it is marginally useful.  To active it, simply remove the # and re run the code.
@@ -99,8 +100,8 @@ bacteria.df.6=subset.data.frame(bacteria.df, taxlevel==6,drop=TRUE)  #6 is the s
 
 #you'll have to update your first and last sample column name in the "vars" argument below.  You will also need to look at your sample (column) names and adjust the arguments in the separate function.  Briefly, change the arguments int he "into" list to represent the number o chunks you can split your sample name into.  Secondly,the "sep"  says how many places fromt he left or right(-) the cuts should be made to separate.  The number of values in sep should each the number of groups in into less 1.
 shannon.nbc<-bacteria.df.6 %>% 
-  subset(select=c(-taxlevel,-rankID,-taxon,-daughterlevels,-total)) %>% 
-  mutate_at(vars(X170818HA:X170828HB),funs(diversity(.,index="shannon"))) %>%
+  subset(select=c(-taxlevel,-rankID,-taxon,-daughterlevels,-total)) %>% #IF YOU HAVE CONTROLS< YOU CAN 
+  mutate_at(vars(X170818HA:X170828HB),funs(diversity(.,index="shannon"))) %>% #MAKE SURE YOUR COLLUMNS MAKE SENSE
   gather(key="Sample",value="Diversity") %>%
   distinct(Sample,Diversity) %>% 
   separate(Sample, into=c("junk","Date","Substrate","Rep"), sep=c(1,7,-1))
@@ -370,7 +371,7 @@ env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I spe
               "Q")
 
 
-env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
+env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns. ! is the remove command (or retain all except)
 
 
 
@@ -388,9 +389,10 @@ bac.env$Junk=NULL
 bac.env=droplevels(bac.env[-which(bac.env$Substrate=='CR'),])
 env.df$Date_Sampled=as.factor(env.df$Date_Sampled)
 env.df$Date_Sampled=revalue(env.df$Date_Sampled,c("8/18/2017"="3","8/29/2017"="10","9/5/2017"="21","9/15/2017"="31"))
-env.df$Substrate=factor(env.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
+env.df$Substrate=factor(env.df$Substrate,levels=c("H","So","Sh","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
-env.df.fac=env.df[,1:2] #We want to copy the first two columns of site  data here.  We can't have ANY site data present when we do our ordination.  We will reattache this site data tot he ordination table afterwards so we can make inferences and good figures.
+end.df.names=c("Date_Sampled","Substrate")
+env.df.fac=env.df[,names(env.df) %in% end.df.names] #We want to copy the first two columns of site  data here.  We can't have ANY site data present when we do our ordination.  We will reattache this site data tot he ordination table afterwards so we can make inferences and good figures.
 
 bac.df.sps<-bac.env %>% 
   spread(key=taxon, value=obs) %>% 
@@ -415,23 +417,22 @@ bac.spp.scrs=bac.spp.scrs[ which (bac.spp.scrs$pvals<0.05),] #Here we select onl
 
 
 #Plotting oru NDMS
-bac.nmds=ggplot(bac.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Substrate,fill=Date))+
+bac.nmds=ggplot()+
+  geom_point(data=bac.ORD ,aes(x=MDS1,y=MDS2, shape=Substrate,fill=Date_Sampled,color=Date_Sampled),size=3)+
   coord_fixed(ratio=1)+
   geom_segment(data=bac.spp.scrs, #lines for vectors
                aes(x=0, xend=bac.spp.scrs$NMDS1/4, y=0,yend=bac.spp.scrs$NMDS2/4),
                arrow=arrow(length=unit(.1, "cm")),
                color="red")+
-  geom_text(data = bac.spp.scrs, #labels for vectors
-            aes(x = NMDS1/4.5, y = NMDS2/4.5, label = Assay),
+  geom_text_repel(data = bac.spp.scrs, #labels for vectors
+            aes(x = NMDS1/4, y = NMDS2/4, label = Assay),
             size = 3) +
   ggtitle("Bacterial Communities")+
-  theme_classic()+
-  labs(shape="Day of Incubation", 
-       color="Substrate")+
-  xlim(-0.3,0.3)+
-  ylim(-0.3,0.3)+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))
+  scale_fill_viridis_d("Day of Incubation")+
+  scale_color_viridis_d("Day of Incubation")+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))+
+  theme_classic()#+
+  #labs(shape="Substrate", fill="Date Sampled")
 bac.nmds
 
 ## The scores and stress values are important metrics of NMDS quality

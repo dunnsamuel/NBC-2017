@@ -70,50 +70,36 @@ We are interested in the effects of time and substrate on the community we seque
 algae.df$taxlevel=as.factor(algae.df$taxlevel)
 algae.df.6=subset.data.frame(algae.df, taxlevel==6,drop=TRUE)
 
-shannon<-function(x){
-  shan.list=diversity(x,index="shannon")
-  return(shan.list)
-}
- #Function to support vectorization
-
-shannon.nbc=apply(algae.df.6[,6:67],2,shannon)
-#apply function calculates shannon diversity by row (2 option)
 
 
-
-list_to_df <- function(list_for_df) {
-  list_for_df <- as.list(list_for_df)
-
-  nm <- names(list_for_df)
-  if (is.null(nm))
-    nm <- seq_along(list_for_df)
-
-  df <- data.frame(name = nm, stringsAsFactors = FALSE)
-  df$value <- unname(list_for_df)
-  df
-} #convert list produced by shannon function
-
-S=max(algae.df.6$total) #Get Richness (total seq)
-shannon.df=list_to_df(shannon.nbc)
-shannon.df$value=as.numeric(shannon.df$value)
-shannon.df$pielou=shannon.df$value/log(S) #pielou's evenness
+#you'll have to update your first and last sample column name in the "vars" argument below.  You will also need to look at your sample (column) names and adjust the arguments in the separate function.  Briefly, change the arguments int he "into" list to represent the number o chunks you can split your sample name into.  Secondly,the "sep"  says how many places fromt he left or right(-) the cuts should be made to separate.  The number of values in sep should each the number of groups in into less 1.
+alg.shannon.df<-algae.df.6 %>% 
+  subset(select=c(-taxlevel,-rankID,-taxon,-daughterlevels,-total)) %>% #IF YOU HAVE CONTROLS< YOU CAN remove them here too
+  mutate_at(vars(X170818FA:X170915TC),funs(diversity(.,index="shannon"))) %>% #MAKE SURE YOUR COLLUMNS MAKE SENSE
+  gather(key="Sample",value="Diversity") %>%
+  distinct(Sample,Diversity) %>% 
+  separate(Sample, into=c("junk","Date","Substrate","Rep"), sep=c(1,7,-1))
+  
 
 
+alg.shannon.df$junk=NULL
+alg.shannon.df=droplevels(alg.shannon.df[-which(alg.shannon.df$Substrate=='CR'),]) #drop controls
+alg.shannon.df$Date=as.factor(alg.shannon.df$Date)
+alg.shannon.df$Date=revalue(alg.shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+alg.shannon.df$Substrate=factor(alg.shannon.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
-shannon.df=separate(shannon.df,name,into=c("junk","Date","Substrate"),sep=c(1,7)) #breaks up sample cpde "name" into component parts
-shannon.df=separate(shannon.df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-shannon.df$junk=NULL
-shannon.df=droplevels(shannon.df[-which(shannon.df$Substrate=='CR'),]) #drop controls
-shannon.df$Date=as.factor(shannon.df$Date)
-shannon.df$Date=revalue(shannon.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+#Now, we summarizse by Date and Susbtrate  and get means and se across our reps.  
+shannon.div.summary<-alg.shannon.df %>% 
+  group_by(Date, Substrate) %>% 
+  summarise(mean=mean(Diversity),se=(sd(Diversity)/sqrt(n())))
 
-shannon.div.summary=summarySE(shannon.df,measurevar="value",groupvars=c("Date","Substrate"),na.rm=TRUE)
-shannon.even.summary=summarySE(shannon.df,measurevar="pielou",groupvars=c("Date","Substrate"),na.rm=TRUE)
 
 #figure
-shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=value-se,ymax=value+se),width=0.3,position=pd)+ylab("Shannon Diversity (H')")+
+shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=mean,group=Substrate,shape=Substrate,fill=Substrate))+
+  geom_point(position=pd,size=4)+
+  geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=mean-se,ymax=mean+se),width=0.3,position=pd)+
+  ylab("Shannon Diversity (H')")+
   theme_classic()+
   theme(legend.position=c(0.25,0.95),
         legend.title=element_blank(),
@@ -121,23 +107,14 @@ shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=value,group=Substrate,s
         axis.text=element_text(size=16),
         axis.title=element_text(size=16),
         legend.text=element_text(size=14))+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))+ggtitle("Algal Communities")+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))+
+  ggtitle("Algal Communities")+
   scale_y_continuous(breaks=seq(0,5,0.5))
 shannon.div.alg
 
-tidy(aov(value~Date+Substrate+Date:Substrate,data=shannon.df))
-
-shan.aov=shannon.df%>%
-  group_by(Date)%>%
-  do(tidy(aov(value~Substrate,data=.)))
-shan.aov
+alg.shan.aov<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=shannon.df))
 
 
-
-tukey.shan=shannon.df%>%
-  group_by(Date)%>%
-  do(multitst=TukeyHSD(aov(value~Substrate,data=.)))
-tukey.shan %>%tidy(multitst)
 
 ```
 
