@@ -125,20 +125,6 @@ its.shan.aov<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=its.shannon.
 saveRDS(its.shannon.df,"its.shannon.Rdata")
 ```
 
-Similar to Shannon diversity, we also want to know the evenness of the community across time and our substrates.  We use Pielou's evenness (calculated above) and visualize it here.
-```{r Evenness,include=FALSE}
-shannon.even=ggplot(shannon.even.summary, aes(x=Date,y=pielou,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=pielou-se,ymax=pielou+se),width=0.3,position=pd)+ylab("Pielou's Evenness")+
-  theme_classic()+
-  theme(legend.position=c(0.25,0.95),legend.title=element_blank(),legend.direction="horizontal",
-        axis.text=element_text(size=16),
-        axis.title=element_text(size=16),
-        legend.text=element_text(size=14))+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))
-shannon.even
-```
-
 
 We want to count the number of unqiue taxa we have ine ach sample (or OTUs, operational taxonomic units).  TO do this we use a simple custom function and look for values greater than 0 in each row of the dataset
 ```{r OTU Richness,include=FALSE}
@@ -547,7 +533,7 @@ env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I spe
 
 env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
 
-its.df.3=subset.data.frame(its.df, taxlevel==4,drop=TRUE) %>% 
+its.df.3=subset.data.frame(its.df, taxlevel==3,drop=TRUE) %>% 
   select(-taxlevel,-rankID,-daughterlevels,-total,-SDKC2,-SDKC3)
 
 its.df.sp<-its.df.3  %>% 
@@ -556,19 +542,19 @@ its.df.sp<-its.df.3  %>%
 
 its.df.sp$Junk=NULL
 its.df.sp=droplevels(its.df.sp[-which(its.df.sp$Substrate=='CR'),])
-its.df.sp$Date=as.factor(its.df.sp$Date)
-its.df.sp$Date=revalue(its.df.sp$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
-its.df.sp$Substrate=factor(its.df.sp$Substrate,levels=c("H","So","Sh","F","T"),
+env.df$Date_Sampled=as.factor(env.df$Date_Sampled)
+env.df$Date_Sampled=revalue(env.df$Date_Sampled,c("8/18/2017"="3","8/29/2017"="10","9/5/2017"="21","9/15/2017"="31"))
+env.df$Substrate=factor(env.df$Substrate,levels=c("H","So","Sh","F","T"),
                            labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
 
 
-end.df.names=c("Date","Substrate")
+end.df.names=c("Date_Sampled","Substrate")
 env.df.fac=env.df[,names(env.df) %in% end.df.names]
  #god thats a lot fo data munging...I know I've done this in toher chunks but I want each chunk to stand on its own if need be.
 
 its.df.sps<-its.df.sp %>% 
-  dplyr::select(-Date,-Substrate,-Rep)%>% 
-  spread(key=taxon, value=obs) 
+  spread(key=taxon, value=obs) %>% 
+  dplyr::select(-Date,-Substrate,-Rep)
 #spread take a tall data table and makes it wide.  each "key" value becomes a column populated by the "value"
   
 
@@ -582,8 +568,16 @@ its.ORD=cbind(its.ORD,env.df.fac) #combine nmds coordinates with env data
 
 its.fit=envfit(its.ord.nmds,env.df.fit,perm=999,na.rm=T,display="sites") #correlate you nmds coordintes with env data  Higher perm number means mroe sensitive p value
 
+its.fit.df=as.data.frame(its.fit$vectors$arrows*sqrt(its.fit$vectors$r)) #exracting the data to plot the vectors
+its.fit.df$species=rownames(its.fit.df) #converting rownmaes (inaccesible data) to a column (accessible data)
+its.spp.scrs=as.data.frame(scores(its.fit,display="vectors"))
+its.spp.scrs=cbind(its.spp.scrs, Assay=rownames(its.spp.scrs),its.fit$vectors$pvals) #Combining vector coordinates, pvalues etc into a data table for plotting 
+its.spp.scrs=setnames(its.spp.scrs, old=("its.fit$vectors$pvals"), new=c("pvals")) #Changing the name for clarity's sake
+its.spp.scrs=its.spp.scrs[ which (its.spp.scrs$pvals<0.05),] #Here we select only the  vectors whose p.vals are less than 0.05.
+
+
 its.nmds=ggplot(its.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate,size=Date_Sampled))+
+  geom_point(mapping= aes(MDS1,MDS2,shape=Substrate,color=Date_Sampled,fill=Date_Sampled))+
   coord_fixed(ratio=1)+
   geom_segment(data=its.spp.scrs, 
                aes(x=0, xend=its.spp.scrs$NMDS1/2, 
@@ -594,11 +588,9 @@ its.nmds=ggplot(its.ORD)+
             aes(x = NMDS1/2, 
                 y = NMDS2/2, label = Assay),
             size = 3) +
-    geom_path(data=its.df_ell, 
-              aes(x=MDS1, y=MDS2,colour=group), 
-              size=1, 
-              linetype=2)+
   ggtitle("Fungal Communities")+
+  scale_fill_viridis_d("Day of Incubation")+
+  scale_color_viridis_d("Day of Incubation")+
   theme_classic()+
   labs(shape="Date Sampled", color="Substrate")+
   xlim(-0.5,0.5)+

@@ -112,25 +112,12 @@ shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=mean,group=Substrate,sh
   scale_y_continuous(breaks=seq(0,5,0.5))
 shannon.div.alg
 
-alg.shan.aov<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=shannon.df))
+alg.shan.aov<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=alg.shannon.df))
 
 
 
 ```
 
-Similar to Shannon diversity, we also want to know the evenness of the community across time and our substrates.  We use Pielou's evenness (calculated above) and visualize it here.
-```{r Evenness,echo=FALSE,warning=FALSE}
-shannon.even=ggplot(shannon.even.summary, aes(x=Date,y=pielou,group=Substrate,shape=Substrate,fill=Substrate))+
-  geom_point(position=pd,size=4)+geom_line(aes(linetype=Substrate),position=pd)+
-  geom_errorbar(aes(ymin=pielou-se,ymax=pielou+se),width=0.3,position=pd)+ylab("Pielou's Evenness")+
-  theme_classic()+
-  theme(legend.position=c(0.25,0.95),legend.title=element_blank(),legend.direction="horizontal",
-        axis.text=element_text(size=16),
-        axis.title=element_text(size=16),
-        legend.text=element_text(size=14))+
-  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))
-shannon.even
-```
 
 
 We want to count the number of unqiue taxa we have ine ach sample (or OTUs, operational taxonomic units).  TO do this we use a simple custom function and look for values greater than 0 in each row of the dataset
@@ -488,40 +475,79 @@ simper(anosim.df,design.df[,2])
 
 So we know whetehr our sample communities differ or not, but now we want to explain these differences (or lack thereof).  How do we bring our non-community environmental data?  We will use the envfit function in vegan to do this!  Envfit takes your community distance matrices and looks for correlations with a similarlys tructured dataset.  Your data sets (community and env) need to be the same size and not contain missing values for this to work.
 ```{r Envfit,echo=FALSE,warning=FALSE}
-env.df<- read.csv("C:/Users/sdunn3/Google Drive/North Branch Chicago Data/NBC/env.df.csv") #env data from my study.
-env.drops=c("8/15/2017","8/22/2017","8/25/2017","9/1/2017","9/8/2017","9/12/2017") #trimmign sample dates where I didn't sequence
-env.df=droplevels(env.df[!(env.df$Date.Sampled %in% env.drops),])
-colnames(env.df)=c("Date_Sampled","Substrate","NEP","GPP","Respiration","BG-ase","NAG-ase","P-ase",
-                   "Chl.a","Biomass","Day of Incubation","SRP","NO3","NH4","doy","width","xdepth","xvelocity",
-              "xtemp","xspc","Q")
-env.c.drops=c("X","Date.Sampled","Sample","time","doy","width","xdepth","xvelocity",
-              "xtemp","xspc","Q") #droppign some unrelated data...can always add them back by removing them from this list
-env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)]
-env.df.fac=env.df[,1:2]
+env.df <- read.csv("env.df.csv") #external data for vector fitting (laba ssays, field data,etc)
+env.drops=c("8/15/2017",
+            "8/22/2017",
+            "8/25/2017",
+            "9/1/2017",
+            "9/8/2017",
+            "9/12/2017") #beware of date format shifts in excel!!  I am dropping dates from the env.df because I didn't get community measurements for each date
 
-algae.df.sp=subset.data.frame(algae.df, taxlevel==4,drop=TRUE)
 
-drops <- c("taxlevel","rankID","daughterlevels","total","SDKC1","SDKC2","SDKC3") #cleaning up communit data
-algae.df.sp=algae.df.sp[ , !(names(algae.df.sp) %in% drops)]
+env.df=droplevels(env.df[!(env.df$Date.Sampled %in% env.drops),],drop=TRUE)
+colnames(env.df)=c("Date_Sampled",
+                   "Substrate",
+                   "NEP",
+                   "GPP",
+                   "Respiration",
+                   "BG-ase",
+                   "NAG-ase",
+                   "P-ase",
+                   "Chl.a",
+                   "Biomass",
+                   "Day of Incubation",
+                   "SRP",
+                   "NO3",
+                   "NH4",
+                   "doy",
+                   "width",
+                   "xdepth",
+                   "xvelocity",
+                   "xtemp",
+                   "xspc",
+                   "Q")
 
-algae.df.m=melt(algae.df.sp,id.vars="taxon")
-algae.df.sp=dcast(algae.df.m,variable~algae.df.sp$taxon)
-#rabund.df$variable=as.numeric(rabund.df$variable)
-algae.df.sp=separate(algae.df.sp,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
-algae.df.sp=separate(algae.df.sp,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-algae.df.sp$junk=NULL
+env.c.drops=c("X",  #I don't necessarily want to use all the data here, so I specified some columns to ignore (summary columns, duplicates, etc)
+              "Date.Sampled",
+              "Sample",
+              "time",
+              "doy",
+              "width",
+              "xdepth",
+              "xvelocity",
+              "xtemp",
+              "xspc",
+              "Q")
+
+
+env.df.fit=env.df[ , !(names(env.df) %in% env.c.drops)] #this si the code to remove the specified columns
+
+
+algae.df.sp=subset.data.frame(algae.df, taxlevel==3,drop=TRUE) %>% 
+  select(-taxlevel,-rankID,-daughterlevels,-total)
+
+
+algae.df.sp<-algae.df.sp  %>% 
+  gather(key="Sample",value="obs",-taxon) %>% 
+  separate(Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1))
+
+
+algae.df.sp$Junk=NULL
 
 algae.df.sp=droplevels(algae.df.sp[-which(algae.df.sp$Substrate=='CR'),])
-algae.df.sp$Date=as.factor(algae.df.sp$Date)
-algae.df.sp$Date=revalue(algae.df.sp$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+env.df$Date_Sampled=as.factor(env.df$Date_Sampled)
+env.df$Date_Sampled=revalue(env.df$Date_Sampled,c("8/18/2017"="3","8/29/2017"="10","9/5/2017"="21","9/15/2017"="31"))
+env.df$Substrate=factor(env.df$Substrate,levels=c("H","So","Sh","F","T"),
+                           labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
+
+end.df.names=c("Date_Sampled","Substrate")
+env.df.fac=env.df[,names(env.df) %in% end.df.names]
 
 
-algae.df.sps=algae.df.sp[,4:70]
-algae.df.sps=algae.df.sps[rowSums(algae.df.sps)!=0,]
-#dropping KC results in some rows having zero taxa, remove those rows!
-
-algae.df.env=algae.df.sp[,1:2]
- #god thats a lot fo data munging...I know I've done this in toher chunks but I want each chunk to stand on its own if need be.
+algae.df.sps<-algae.df.sp %>% 
+  spread(key=taxon, value=obs) %>% 
+  dplyr::select(-Date,-Substrate,-Rep)
+#spread take a tall data table and makes it wide.  each "key" value becomes a column populated by the "value"
 
 alg.ord.dist=vegdist(algae.df.sps) #get distances
 alg.ord.nmds=metaMDS(alg.ord.dist) #run nmds
@@ -529,7 +555,6 @@ alg.ORD=data.frame(MDS1=alg.ord.nmds$points[,1],MDS2=alg.ord.nmds$points[,2]) #e
 alg.ORD=cbind(alg.ORD,env.df.fac) #combine nmds coordinates with env data
 
 alg.fit=envfit(alg.ord.nmds,env.df.fit,perm=999,na.rm=T,display="sites") #correlate you nmds coordintes with env data  Higher perm number means mroe sensitive p value
-alg.fit
 alg.fit.df=as.data.frame(alg.fit$vectors$arrows*sqrt(alg.fit$vectors$r))
 alg.fit.df$species=rownames(alg.fit.df)
 alg.spp.scrs=as.data.frame(scores(alg.fit,display="vectors"))
@@ -537,26 +562,28 @@ alg.spp.scrs=cbind(alg.spp.scrs, Assay=rownames(alg.spp.scrs),alg.fit$vectors$pv
 alg.spp.scrs=setnames(alg.spp.scrs, old=("alg.fit$vectors$pvals"), new=c("pvals"))
 alg.spp.scrs=alg.spp.scrs[ which (alg.spp.scrs$pvals<0.05),] #select only significant covariates
 
- veganCovEllipse<-function (cov, center = c(0, 0), scale = 1, npoints = 100) #custome functio to calculate ellipses for plotting in ggplot
-  {
-    theta <- (0:npoints) * 2 * pi/npoints
-    Circle <- cbind(cos(theta), sin(theta))
-    t(center + scale * t(Circle %*% chol(cov)))
- }
-alg.df_ell <- data.frame()
-  for(g in levels(alg.ORD$Substrate)){
-   alg.df_ell <- rbind(alg.df_ell, cbind(as.data.frame(with(alg.ORD[alg.ORD$Substrate==g,],
-                    veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
-                    ,group=g))
-  }
 
 alg.nmds=ggplot(alg.ORD)+
-  geom_point(mapping= aes(MDS1,MDS2,shape=Date_Sampled,color=Substrate))+coord_fixed(ratio=1)+
-  geom_segment(data=alg.spp.scrs, aes(x=0, xend=alg.spp.scrs$NMDS1/3, y=0,yend=alg.spp.scrs$NMDS2/3),
-               arrow=arrow(length=unit(0.1, "cm")),color="red")+
-  geom_text(data = alg.spp.scrs, aes(x = NMDS1/3.5, y = NMDS2/3.5, label = Assay),
+  geom_point(mapping= aes(MDS1,MDS2,shape=Substrate,color=Date_Sampled,fill=Date_Sampled))+
+  coord_fixed(ratio=1)+
+  geom_segment(data=alg.spp.scrs, 
+               aes(x=0, 
+                   xend=alg.spp.scrs$NMDS1/2, 
+                   y=0,
+                   yend=alg.spp.scrs$NMDS2/2),
+               arrow=arrow(length=unit(0.1, "cm")),
+               color="red")+
+  geom_text_repel(data = alg.spp.scrs, 
+            aes(x = NMDS1/2, 
+                y = NMDS2/2, 
+                label = Assay),
             size = 3) +
-    geom_path(data=alg.df_ell, aes(x=MDS1, y=MDS2,colour=group), size=1, linetype=2)+ggtitle("Algal Communities")+theme_classic()+xlim(-0.5,0.5)+ylim(-0.5,0.5) #I adjuested the length of the arrows (NMDS1/5, etc) so they woudl fit better int he plot.  This is purely for aesthtetic pruposes
+  ggtitle("Algal Communities")+
+  scale_fill_viridis_d("Day of Incubation")+
+  scale_color_viridis_d("Day of Incubation")+
+  theme_classic()+
+  labs(shape="Date Sampled", color="Substrate")+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25)) #I adjuested the length of the arrows (NMDS1/5, etc) so they woudl fit better int he plot.  This is purely for aesthtetic pruposes
 alg.nmds
 
 

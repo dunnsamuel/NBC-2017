@@ -7,6 +7,9 @@ output:
   html_document: default
 ---
 
+## Using this document
+To have this document runthe 16s, 23s, and ITS .Rmd files.  This will create all  the necessary R objects to run this document.
+
 ```{r setup, echo=F}
 
 ipak <- function(pkg){
@@ -56,8 +59,8 @@ ipak(packages)
 
 #opts_chunk$set(echo = FALSE, cache=FALSE)
 library(knitr)
-load(file="assays.Rdata")
-glm=readRDS(file="glm.Rdata")
+load(file="assays.Rdata") #load data from other R documents  This one is for lab assays
+glm=readRDS(file="glm.Rdata") #This si data for teh GLM model selection.
 
 ```
 
@@ -124,11 +127,12 @@ tab.1<-tab.1 %>%
 tab.1[,4:6]<-tab.1[,4:6] %>% 
   signif(digits=3)
 
-htmlTable::htmlTable(tab.1)
-DT::datatable(tab.1,
-          filter='top',
-          extensions='Buttons',
-          options = list(dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+write.csv(tab.1,file="table1.csv")
+#htmlTable::htmlTable(tab.1)
+#DT::datatable(tab.1,
+     #     filter='top',
+   #       extensions='Buttons',
+     #     options = list(dom = 'Bfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
 ```
 
 
@@ -155,12 +159,14 @@ tab.2$NMDS1=format(round(tab.2$NMDS1,4),nsmall=4)
 tab.2$NMDS2=format(round(tab.2$NMDS2,4),nsmall=4)
 tab.2=plyr::rename(tab.2,c(NMDS1="  NMDS 1  ",NMDS2="  NMDS 2  ",pvals="   p-values "))
 
-table2=htmlTable::htmlTable(tab.2,rgroup=paste(c("Bacteria","Algae","Fungi")),
-                            n.rgroup=c(7,5,nrow(tab.2)-12),
-                            col.rgroup=c("none","#F7F7F7"),
-                            rnames=FALSE,caption="Significant Vectors Fits",
-                            css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
-table2
+
+write.csv(tab.2, file="table2.csv")
+#table2=htmlTable::htmlTable(tab.2,rgroup=paste(c("Bacteria","Algae","Fungi")),
+ #                           n.rgroup=c(7,5,nrow(tab.2)-12),
+ #                           col.rgroup=c("none","#F7F7F7"),
+#                            rnames=FALSE,caption="Significant Vectors Fits",
+ #                           css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
+#table2
 
 
 ```
@@ -194,13 +200,15 @@ tab.3$Community=NULL
 #tab.2=plyr::rename(tab.2,c(NMDS1="  NMDS 1  ",NMDS2="  NMDS 2  ",pvals="   p-values "))
 tab.3=tab.3 %>% mutate_if(is.numeric, round, 4)
 
-table3=htmlTable::htmlTable(tab.3,rgroup=paste(c("Bacteria","Algae","Fungi")),
-                            n.rgroup=c(3,3,3),
-                            col.rgroup=c("none","#F7F7F7"),
-                            rnames=FALSE,
-                            css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
-table3
-knitr::kable(table3)
+
+write.csv(tab.3, file="table3.csv")
+#table3=htmlTable::htmlTable(tab.3,rgroup=paste(c("Bacteria","Algae","Fungi")),
+#                            n.rgroup=c(3,3,3),
+#                            col.rgroup=c("none","#F7F7F7"),
+ #                           rnames=FALSE,
+ #                           css.cell= 'padding: 0px 15px 0px;') #FINALLY!  ADJUST THESE VALUES TO CHANGE PADDING
+#table3
+#knitr::kable(table3)
 
 ```
 
