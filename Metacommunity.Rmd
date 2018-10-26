@@ -185,7 +185,7 @@ lm_model_outputs<-rbind(pos_sum,neg_sum,full_sum)
 lm_model_outputs[,2:5]<-signif(lm_model_outputs[,2:5],4)
 
 saveRDS(lm_model_outputs,"glm.Rdata")
-htmlTable(lm_model_outputs)
+#htmlTable(lm_model_outputs)
 write.xlsx(lm_model_outputs,"glm_mod.xlsx")
 
 
