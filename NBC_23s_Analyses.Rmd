@@ -112,6 +112,23 @@ shannon.div.alg=ggplot(shannon.div.summary, aes(x=Date,y=mean,group=Substrate,sh
   scale_y_continuous(breaks=seq(0,5,0.5))
 shannon.div.alg
 
+shannon.div.alg.bw=ggplot(shannon.div.summary, aes(x=Date,y=mean,group=Substrate,shape=Substrate))+
+  geom_point(position=pd,size=4,fill="black")+
+  geom_line(aes(linetype=Substrate),position=pd)+
+  geom_errorbar(aes(ymin=mean-se,ymax=mean+se),width=0.3,position=pd)+
+  ylab("Shannon Diversity (H')")+
+  theme_classic()+
+  theme(legend.position=c(0.25,0.95),
+        legend.title=element_blank(),
+        legend.direction="horizontal",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25,26))+
+  ggtitle("Algal Communities")+
+  scale_y_continuous(breaks=seq(0,5,0.5))
+shannon.div.alg.bw
+
 alg.shan.aov<-tidy(aov(Diversity~Date+Substrate+Date:Substrate,data=alg.shannon.df))
 
 
@@ -315,59 +332,50 @@ stack.23s.4
 ```
 Stacked bars are not always the best for visualzing communities.  I prefer heatmaps personally and figured out how to make a facetted heatmap.  if you're not familiar with facet_grid() in ggplot it will rock your world.
 ```{r Heatmap Plot,echo=FALSE,warning=FALSE}
-theme_set(theme_gray(base_size = 12))
-algae.df.5=subset.data.frame(algae.df, taxlevel==3,drop=TRUE)
+alg.df.3=subset.data.frame(algae.df, taxlevel==2,drop=TRUE) #Note the higher tax level...purely from a visualization standpoint
+alg.df.3$taxlevel=NULL
+alg.df.3$rankID=NULL
+alg.df.3$daughterlevels=NULL
+alg.df.3$total=NULL
+alg.rab<-alg.df.3 %>% 
+  gather(-taxon,key="Sample",value="obs") 
+  
+alg.rab<-alg.rab %>%   
+  group_by(Sample) %>% 
+  mutate(total_obs=sum(obs),
+         rabund=obs/total_obs)
 
 
 
-sites=list(colnames(algae.df.5[,6:71])) #get list of samples
+alg.rab<-separate(alg.rab,Sample, into=c("Junk","Date","Substrate","Rep"),sep=c(1,7,-1)) 
+alg.rab$Junk=NULL
+
+rabund.df=droplevels(alg.rab[-which(alg.rab$Substrate=='CR'),])
+rabund.df$Date=as.factor(rabund.df$Date)
+rabund.df$Date=revalue(rabund.df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
+rabund.df$Substrate=factor(rabund.df$Substrate,levels=c("H","SO","SH","F","T"),labels=c("PVC","Soft PE","Sheet PE","PS","Tile"))
+
+rabund.sum.df<-rabund.df %>% 
+  group_by(Date,Substrate,taxon) %>% 
+  summarise(mean_rabund=mean(rabund),
+            mean_obs=mean(obs))
 
 
 
-rabund=function(sites){
-  r.abund=sites/algae.df.4$total
-  return(r.abund)
-}
-
-rabund.23df=algae.df.5[,6:71]#rabund(algae.df.4[,6:71])
-rabund.23df=cbind(algae.df.5$taxon,rabund.23df)
-
-
-rabund.23df=dcast(melt(rabund.23df,id.vars="algae.df.5$taxon"),variable~algae.df.5$taxon)
-
-
-rabund.23df=separate(rabund.23df,variable,into=c("junk","Date","Substrate"),sep=c(1,7))
-rabund.23df=separate(rabund.23df,Substrate,into=c("Substrate","Rep"),sep=c(-1))
-rabund.23df$junk=NULL
-
-rabund.23df=droplevels(rabund.23df[-which(rabund.23df$Substrate=='CR'),])
-rabund.23df$Chloroplast=NULL # we pull chloroplasts because they are hard to sequence using our primers and are over-represented.  We want to highlight other algae.
-rabund.23df$Date=as.factor(rabund.23df$Date)
-rabund.23df$Date=revalue(rabund.23df$Date,c("170818"="3","170828"="10","170905"="21","170915"="31"))
-
-
-rabund.23h=aggregate(rabund.23df[,4:32],list(rabund.23df$Date,rabund.23df$Substrate),mean)
-
-
-
-
- 
-rabund.23h=melt(rabund.23h,id.vars=c("Group.1","Group.2"))
-rabund.23h=rabund.23h%>%
-  group_by(Group.1)%>%
-  arrange(Group.1,desc(value))%>%
-  slice(seq(n()*1))
-
-require(viridis)
-ggplot(rabund.23h, aes(Group.1,variable,fill=log(value)))+geom_tile()+
-  facet_wrap(~Group.2,nrow=1)+scale_fill_viridis(option="B")+
-  theme(#axis.text.x=element_text(angle=90),
-        axis.text=element_text(size=10),
+require(viridis) #viridis is a package of alternative color scales to allow for high contrast observations....i.e. whent here are very subtle changes.
+ggplot(rabund.sum.df, aes(Date,taxon,fill=mean_rabund))+
+  geom_tile(width=1)+
+  facet_wrap(~Substrate,nrow=1)+#facet wrap splits our graph into multiuple chunks where each has a unique valeu for some factor
+  scale_fill_viridis_c(name="Root Mean Relative\nAbundance")+  #\n creates a line break in text
+  theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10),
-        legend.text=element_text(size=10))+
-  ylab("Class")+
+        strip.text=element_text(size=10),
+        legend.title = element_text(size=12))+
+  ylab("Phylum")+
   xlab("Day of Incubation")
   
+ggsave("alg.hm.jpeg", device="jpeg", width=8, height=10,units="in")
+#you can also set dimensions when your print your figures
 ```
 
 These are all pretty graphs so far, but you haven't answered the question!  Are there differences between substrates, dates, and their interaction?!  Never fear we will answer that int he following code chunk using ANOSIM (analysis of similirity).  ANOSIM is a multivairate method that is similar to ANOVA, but it instead uses a disimilarity matrix (bray curtis in oru case) instead of the data directly.

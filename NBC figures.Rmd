@@ -238,6 +238,19 @@ shannon.plot=ggarrange(shannon.div.16s+theme(axis.text.x=element_blank(),
           common.legend = FALSE,nrow=3,align="v")
 shannon.plot
 ggsave("shannon.plot.jpeg",device = "jpeg",width=8.5,height=8.5, units="in")
+
+shannon.plot.bw=ggarrange(shannon.div.16s.bw+theme(axis.text.x=element_blank(),
+                                axis.title.y=element_blank(),
+                                axis.title.x=element_blank(),
+                                legend.position = c(0.25,0.95)),
+          shannon.div.alg.bw+theme(axis.text.x=element_blank(),
+                                axis.title.x=element_blank(),
+                                legend.position = "none"),
+          shannon.div.its.bw+theme(axis.title.y=element_blank(),
+                                legend.position = "none"),
+          common.legend = FALSE,nrow=3,align="v")
+shannon.plot.bw
+ggsave("shannon.plot.bw.jpeg",device = "jpeg",width=8.5,height=8.5, units="in")
 ```
 
 ```{r Figure 5 (NMDS with vectors),warning=FALSE,message=FALSE}

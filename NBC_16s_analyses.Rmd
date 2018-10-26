@@ -143,6 +143,23 @@ shannon.div.16s=ggplot(shannon.div.summary,  aes(x=Date,y=mean,group=Substrate,s
 shannon.div.16s #calls (views) the graph we made
 
 
+shannon.div.16s.bw=ggplot(shannon.div.summary,  aes(x=Date,y=mean,group=Substrate,shape=Substrate))+ 
+  geom_point(position=pd,size=4,fill="black")+
+  geom_line(aes(linetype=Substrate),position=pd)+ 
+  geom_errorbar(aes(ymin=mean-se,ymax=mean+se),width=0.3,position=pd)+
+  ylab("Shannon Diversity (H')")+ 
+  theme_classic()+ #good generla theme for clean figures
+  theme(legend.position=c(0.25,0.95), #legends are ifnitiely tweakable
+        legend.title=element_blank(),
+        legend.direction="horizontal",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=14))+
+  scale_shape_manual(name="Substrate",values=c(21,22,23,24,25))+ #I manually changed the shape of th points.  tehre is great additional supporting info online
+  ggtitle("Bacterial Communities")+
+  scale_y_continuous(breaks=seq(0,5,0.1)) #for consistency I am telling it to sacel y axis from 0 to 5 by 0.1 intervals
+shannon.div.16s.bw 
+
 #ggsave lets you print your plots to jpegs, pdf, etc.  Just adjust the filename and device accordingly
 
 #ggsave(shannon.div.16s,filename="shannon_plot.pdf",device="pdf")
